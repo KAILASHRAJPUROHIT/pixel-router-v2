@@ -8,6 +8,8 @@ Never touches or depends on the phone doing anything but serving its
 existing dashboard; never calls out to any cloud AI service.
 """
 
+import os
+import sys
 import time
 import traceback
 from datetime import datetime, timezone
@@ -17,6 +19,18 @@ import history
 import notifier
 import ollama_client
 from fetch_router_data import get_current_stats, RouterUnreachable
+
+# Runs via pythonw.exe (no console window) as a Scheduled Task - pythonw
+# has no console for print() to write to, so redirect stdout/stderr to a
+# log file instead of silently losing output. Only kicks in when there's
+# no real console attached (sys.stdout is None under pythonw); running
+# this script directly in a terminal still prints normally.
+if sys.stdout is None:
+    _log_path = os.path.join(os.path.dirname(__file__), "data", "analyzer_console.log")
+    os.makedirs(os.path.dirname(_log_path), exist_ok=True)
+    _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = _log_file
+    sys.stderr = _log_file
 
 SYSTEM_PROMPT = """You are a monitoring assistant for a home-built Android \
 phone acting as an always-on 4G/5G hotspot router. You receive a snapshot \

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/panel_1"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:layout_marginStart="135dp"
+        android:layout_marginTop="350dp"
+        android:background="@drawable/aod_circle_bg">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="26sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+    </FrameLayout>
+
+    <include layout="@layout/aod_row_radial" android:id="@+id/row0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="175dp" android:layout_marginTop="88dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="263dp" android:layout_marginTop="149dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="318dp" android:layout_marginTop="309dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="318dp" android:layout_marginTop="507dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="263dp" android:layout_marginTop="667dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row5" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="175dp" android:layout_marginTop="728dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row6" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="87dp" android:layout_marginTop="667dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="32dp" android:layout_marginTop="507dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row8" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="32dp" android:layout_marginTop="309dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="87dp" android:layout_marginTop="149dp" />
+
+    <TextView
+        android:id="@+id/date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="40dp"
+        android:textSize="12sp"
+        android:text="---" />
+
+    <TextView
+        android:id="@+id/health_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="60dp"
+        android:textSize="11sp"
+        android:textAllCaps="true"
+        android:text="--" />
+
+</FrameLayout>

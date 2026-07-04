@@ -8,6 +8,16 @@
         android:allowBackup="false"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
+        <activity
+            android:name=".AodSettingsActivity"
+            android:exported="true"
+            android:label="Router AOD">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".RouterDreamService"
             android:exported="true"

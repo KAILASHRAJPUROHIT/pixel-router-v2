@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingTop="32dp">
+
+    <LinearLayout
+        android:id="@+id/panel_1"
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/aod_panel_bg"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="34sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:text="---" />
+
+        <TextView
+            android:id="@+id/health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textAllCaps="true"
+            android:layout_marginTop="4dp"
+            android:text="--" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/panel_2"
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/aod_panel_bg"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="2">
+
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row0" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row2" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row3" />
+
+        </GridLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/panel_3"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/aod_panel_bg"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="3">
+
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row4" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row5" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row6" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row7" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row8" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row9" />
+
+        </GridLayout>
+    </LinearLayout>
+
+</LinearLayout>

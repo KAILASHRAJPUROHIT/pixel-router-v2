@@ -1,6 +1,8 @@
 package com.router.aod;
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -8,6 +10,8 @@ import android.service.dreams.DreamService;
 import android.text.format.DateFormat;
 import android.util.Base64;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
@@ -26,8 +30,13 @@ import java.util.regex.Pattern;
  * whenever the device is idle while charging (this router is plugged in
  * 24/7, so in practice this is effectively always-on). Polls the same
  * local dashboard the busybox-httpd server already serves on this same
- * device (127.0.0.1:8080) and mirrors its stats natively, instead of
- * showing a browser or relying on the periodic lock-screen notification.
+ * device (127.0.0.1:8080) and mirrors its stats natively.
+ *
+ * Layout (structure) and theme (color) are independent, user-selectable
+ * via AodSettingsActivity - see AodLayout/AodTheme. All six layouts
+ * expose the same row0..row9 <include> IDs (each containing
+ * stat_label/stat_value), so this class binds any of them with one
+ * generic routine rather than needing a per-layout binder class.
  */
 public class RouterDreamService extends DreamService {
 
@@ -47,29 +56,36 @@ public class RouterDreamService extends DreamService {
     private static final int MIN_SAFE_BATTERY_PCT = 30;
 
     // Captures label, the value div's remaining attributes (may contain a
-    // --c:#hex inline style for status-colored stats like Thermal/SMS Fwd),
-    // and the value text itself.
+    // --c:#hex inline style for status-colored stats like Thermal/SMS Fwd/
+    // Internet/Signal), and the value text itself.
     private static final Pattern STAT_PATTERN = Pattern.compile(
             "<div class=\"label\">([^<]+)</div><div class=\"value[^\"]*\"([^>]*)>([^<]+)</div>");
     private static final Pattern INLINE_COLOR_PATTERN = Pattern.compile("--c:(#[0-9a-fA-F]{3,8})");
 
-    private static final int DEFAULT_ACCENT_COLOR = Color.parseColor("#8FD3FF");
-    private static final int NEUTRAL_PILL_COLOR = Color.parseColor("#888888");
+    private static final String[] STAT_KEYS = {
+            "Down", "Up", "Devices", "Total Used", "Battery",
+            "Thermal", "Skin Temp", "SMS Fwd", "Internet", "Signal"
+    };
+    private static final int[] ROW_IDS = {
+            R.id.row0, R.id.row1, R.id.row2, R.id.row3, R.id.row4,
+            R.id.row5, R.id.row6, R.id.row7, R.id.row8, R.id.row9
+    };
+    // Index into STAT_KEYS used for the sidebar layout's two blown-up
+    // "headline" stats - null-checked, only present in that one layout.
+    private static final int HEADLINE1_INDEX = 4; // Battery
+    private static final int HEADLINE2_INDEX = 8; // Internet
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ExecutorService fetchExecutor;
 
-    private TextView clockView, dateView, connStatusView, statusOnlineView, statusSignalView;
-    private TextView[] labelViews = new TextView[8];
-    private TextView[] valueViews = new TextView[8];
-    private View[] dotViews = new View[8];
-    private static final String[] STAT_KEYS = {
-            "Down", "Up", "Devices", "Total Used", "Battery", "Thermal", "Skin Temp", "SMS Fwd"
-    };
-    private static final int[] ROW_IDS = {
-            R.id.row_down, R.id.row_up, R.id.row_devices, R.id.row_total,
-            R.id.row_battery, R.id.row_thermal, R.id.row_skintemp, R.id.row_smsfwd
-    };
+    private AodTheme currentTheme;
+
+    private View bgRoot, panel1, panel2, panel3, railBg, divider1;
+    private TextView clockView, dateView;
+    private final TextView[] labelViews = new TextView[STAT_KEYS.length];
+    private final TextView[] valueViews = new TextView[STAT_KEYS.length];
+    private TextView headline1Label, headline1Value, headline2Label, headline2Value;
+    private TextView healthBadge;
 
     private final Runnable clockTick = new Runnable() {
         @Override
@@ -87,36 +103,92 @@ public class RouterDreamService extends DreamService {
         }
     };
 
+    // Burn-in protection: this runs 24/7 while charging, so the same
+    // pixels would otherwise stay lit for hours at a stretch. Nudging
+    // the whole layout a few px in a slow cycling pattern (same trick
+    // OLED TVs and Android's own AOD use) is imperceptible at this
+    // brightness but keeps any single pixel from taking sustained wear.
+    private static final long BURN_IN_SHIFT_INTERVAL_MS = 60000; // 1 min
+    private static final float[][] BURN_IN_OFFSETS_DP = {
+            {0, 0}, {4, 0}, {4, 4}, {0, 4}, {-4, 4}, {-4, 0}, {-4, -4}, {0, -4}, {4, -4}
+    };
+    private int burnInShiftIndex = 0;
+
+    private final Runnable burnInShiftTick = new Runnable() {
+        @Override
+        public void run() {
+            applyBurnInShift();
+            mainHandler.postDelayed(this, BURN_IN_SHIFT_INTERVAL_MS);
+        }
+    };
+
+    private void applyBurnInShift() {
+        if (bgRoot == null) return;
+        float density = getResources().getDisplayMetrics().density;
+        float[] offset = BURN_IN_OFFSETS_DP[burnInShiftIndex % BURN_IN_OFFSETS_DP.length];
+        bgRoot.setTranslationX(offset[0] * density);
+        bgRoot.setTranslationY(offset[1] * density);
+        burnInShiftIndex++;
+    }
+
+    // Adaptive brightness: dimmer overnight than during the day, on top
+    // of the baseline setScreenBright(false) dream-dim mode - re-checked
+    // periodically rather than once, so it actually adapts as the clock
+    // crosses the day/night boundary while the dream keeps running.
+    private static final long BRIGHTNESS_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 min
+    private static final int NIGHT_START_HOUR = 23;
+    private static final int NIGHT_END_HOUR = 6;
+    private static final float DAY_BRIGHTNESS = 0.08f;
+    private static final float NIGHT_BRIGHTNESS = 0.02f;
+
+    private final Runnable brightnessTick = new Runnable() {
+        @Override
+        public void run() {
+            applyAdaptiveBrightness();
+            mainHandler.postDelayed(this, BRIGHTNESS_CHECK_INTERVAL_MS);
+        }
+    };
+
+    private void applyAdaptiveBrightness() {
+        int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+        boolean night = hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR;
+        Window window = getWindow();
+        if (window == null) return;
+        WindowManager.LayoutParams lp = window.getAttributes();
+        lp.screenBrightness = night ? NIGHT_BRIGHTNESS : DAY_BRIGHTNESS;
+        window.setAttributes(lp);
+    }
+
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
         setInteractive(false);
         setFullscreen(true);
-        setContentView(R.layout.dream_router);
+        // Real ambient displays run dim, not at full interactive
+        // brightness - this is the single biggest lever for both power
+        // draw and heat on a screen that stays on continuously, since
+        // display brightness dominates over the lightweight 5s poll loop.
+        setScreenBright(false);
 
-        clockView = findViewById(R.id.clock);
-        dateView = findViewById(R.id.date);
-        connStatusView = findViewById(R.id.conn_status);
-        statusOnlineView = findViewById(R.id.status_online);
-        statusSignalView = findViewById(R.id.status_signal);
+        SharedPreferences prefs = getSharedPreferences(
+                AodSettingsActivity.PREFS_NAME, MODE_PRIVATE);
+        AodLayout[] layouts = AodLayout.values();
+        int layoutIdx = clamp(prefs.getInt(AodSettingsActivity.KEY_LAYOUT, 0), 0, layouts.length - 1);
+        int themeIdx = clamp(prefs.getInt(AodSettingsActivity.KEY_THEME, 0), 0, AodTheme.ALL.length - 1);
+        AodLayout currentLayout = layouts[layoutIdx];
+        currentTheme = AodTheme.ALL[themeIdx];
 
-        for (int i = 0; i < ROW_IDS.length; i++) {
-            View row = findViewById(ROW_IDS[i]);
-            labelViews[i] = row.findViewById(R.id.stat_label);
-            valueViews[i] = row.findViewById(R.id.stat_value);
-            dotViews[i] = row.findViewById(R.id.stat_dot);
-            labelViews[i].setText(STAT_KEYS[i]);
-            valueViews[i].setText("--");
-            // Hide the trailing divider after the last row so the card
-            // doesn't end with a stray line before its bottom padding.
-            if (i == ROW_IDS.length - 1) {
-                row.findViewById(R.id.stat_divider).setVisibility(View.GONE);
-            }
-        }
+        setContentView(currentLayout.layoutRes);
+        bindViews();
+        applyTheme(currentTheme);
 
         fetchExecutor = Executors.newSingleThreadExecutor();
         mainHandler.post(clockTick);
         mainHandler.post(pollTick);
+        burnInShiftIndex = 0;
+        mainHandler.postDelayed(burnInShiftTick, BURN_IN_SHIFT_INTERVAL_MS);
+        applyAdaptiveBrightness();
+        mainHandler.postDelayed(brightnessTick, BRIGHTNESS_CHECK_INTERVAL_MS);
     }
 
     @Override
@@ -124,8 +196,82 @@ public class RouterDreamService extends DreamService {
         super.onDetachedFromWindow();
         mainHandler.removeCallbacks(clockTick);
         mainHandler.removeCallbacks(pollTick);
+        mainHandler.removeCallbacks(burnInShiftTick);
+        mainHandler.removeCallbacks(brightnessTick);
         if (fetchExecutor != null) {
             fetchExecutor.shutdownNow();
+        }
+    }
+
+    private int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    private void bindViews() {
+        clockView = findViewById(R.id.clock);
+        dateView = findViewById(R.id.date);
+        bgRoot = findViewById(R.id.bg_root);
+        panel1 = findViewById(R.id.panel_1);
+        panel2 = findViewById(R.id.panel_2);
+        panel3 = findViewById(R.id.panel_3);
+        railBg = findViewById(R.id.rail_bg);
+        divider1 = findViewById(R.id.divider_1);
+        headline1Label = findViewById(R.id.headline1_label);
+        headline1Value = findViewById(R.id.headline1_value);
+        headline2Label = findViewById(R.id.headline2_label);
+        headline2Value = findViewById(R.id.headline2_value);
+        healthBadge = findViewById(R.id.health_badge);
+
+        for (int i = 0; i < ROW_IDS.length; i++) {
+            View row = findViewById(ROW_IDS[i]);
+            labelViews[i] = row.findViewById(R.id.stat_label);
+            valueViews[i] = row.findViewById(R.id.stat_value);
+            labelViews[i].setText(STAT_KEYS[i]);
+            valueViews[i].setText("--");
+        }
+        if (headline1Label != null) headline1Label.setText(STAT_KEYS[HEADLINE1_INDEX]);
+        if (headline2Label != null) headline2Label.setText(STAT_KEYS[HEADLINE2_INDEX]);
+    }
+
+    private void applyTheme(AodTheme theme) {
+        if (bgRoot != null) bgRoot.setBackgroundColor(theme.background);
+        tintPanel(panel1, theme.panel);
+        tintPanel(panel2, theme.panel);
+        tintPanel(panel3, theme.panel);
+        if (railBg != null) railBg.setBackgroundColor(theme.panel);
+        if (divider1 != null) divider1.setBackgroundColor(theme.textMuted);
+
+        Typeface bold = theme.fontFamily != null ? Typeface.create(theme.fontFamily, Typeface.BOLD) : null;
+        Typeface normal = theme.fontFamily != null ? Typeface.create(theme.fontFamily, Typeface.NORMAL) : null;
+
+        if (clockView != null) {
+            clockView.setTextColor(theme.accent);
+            if (bold != null) clockView.setTypeface(bold);
+        }
+        if (dateView != null) dateView.setTextColor(theme.textMuted);
+        if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
+
+        for (int i = 0; i < labelViews.length; i++) {
+            labelViews[i].setTextColor(theme.textMuted);
+            valueViews[i].setTextColor(theme.textPrimary);
+            if (normal != null) labelViews[i].setTypeface(normal);
+            if (bold != null) valueViews[i].setTypeface(bold);
+        }
+        if (headline1Label != null) headline1Label.setTextColor(theme.textMuted);
+        if (headline1Value != null) headline1Value.setTextColor(theme.textPrimary);
+        if (headline2Label != null) headline2Label.setTextColor(theme.textMuted);
+        if (headline2Value != null) headline2Value.setTextColor(theme.accent);
+    }
+
+    private void tintPanel(View panel, int color) {
+        if (panel == null) return;
+        Drawable bg = panel.getBackground();
+        if (bg != null) {
+            bg = bg.mutate();
+            bg.setTint(color);
+            panel.setBackground(bg);
+        } else {
+            panel.setBackgroundColor(color);
         }
     }
 
@@ -133,8 +279,8 @@ public class RouterDreamService extends DreamService {
         Calendar now = Calendar.getInstance();
         String time = DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm", now).toString();
         String date = DateFormat.format("EEE, d MMM", now).toString();
-        clockView.setText(time);
-        dateView.setText(date);
+        if (clockView != null) clockView.setText(time);
+        if (dateView != null) dateView.setText(date);
     }
 
     private void fetchAndUpdate() {
@@ -150,7 +296,6 @@ public class RouterDreamService extends DreamService {
 
             int code = conn.getResponseCode();
             if (code != 200) {
-                postConnStatus("dashboard error: HTTP " + code);
                 return;
             }
 
@@ -202,44 +347,37 @@ public class RouterDreamService extends DreamService {
                 for (int i = 0; i < STAT_KEYS.length; i++) {
                     String key = STAT_KEYS[i];
                     String v = stats.get(key);
-                    if (v != null) {
-                        valueViews[i].setText(v);
-                    }
+                    if (v == null) continue;
+                    valueViews[i].setText(v);
+                    // Status-type stats keep the dashboard's own semantic
+                    // color (green ok / amber warn / red down) regardless
+                    // of theme - that carries real operational meaning,
+                    // not just decoration. Plain numeric stats use the
+                    // theme's primary text color.
                     Integer color = statColors.get(key);
-                    tintDot(dotViews[i], color != null ? color : DEFAULT_ACCENT_COLOR);
+                    valueViews[i].setTextColor(color != null ? color : currentTheme.textPrimary);
                 }
-
-                String internet = stats.get("Internet");
-                if (internet != null) {
-                    statusOnlineView.setText((internet.equalsIgnoreCase("Online") ? "● " : "○ ") + internet);
-                    tintPill(statusOnlineView, colorOrDefault(statColors.get("Internet")));
+                if (headline1Value != null) {
+                    String v = stats.get(STAT_KEYS[HEADLINE1_INDEX]);
+                    if (v != null) headline1Value.setText(v);
                 }
-                String signal = stats.get("Signal");
-                if (signal != null) {
-                    statusSignalView.setText("Signal: " + signal);
-                    tintPill(statusSignalView, colorOrDefault(statColors.get("Signal")));
+                if (headline2Value != null) {
+                    String v = stats.get(STAT_KEYS[HEADLINE2_INDEX]);
+                    if (v != null) headline2Value.setText(v);
+                }
+                if (healthBadge != null) {
+                    String health = stats.get("Health");
+                    if (health != null) {
+                        healthBadge.setText(health);
+                        Integer color = statColors.get("Health");
+                        healthBadge.setTextColor(color != null ? color : currentTheme.textMuted);
+                    }
                 }
             });
-            postConnStatus("live");
-        } catch (Exception e) {
-            postConnStatus("unreachable: " + e.getClass().getSimpleName());
+        } catch (Exception ignored) {
+            // Best-effort poll - a single failed fetch just leaves the
+            // last-known values on screen until the next cycle succeeds.
         }
-    }
-
-    private int colorOrDefault(Integer color) {
-        return color != null ? color : NEUTRAL_PILL_COLOR;
-    }
-
-    private void tintDot(View dot, int color) {
-        Drawable bg = dot.getBackground().mutate();
-        bg.setTint(color);
-        dot.setBackground(bg);
-    }
-
-    private void tintPill(TextView pill, int color) {
-        Drawable bg = pill.getBackground().mutate();
-        bg.setTint(color);
-        pill.setBackground(bg);
     }
 
     /** Extracts the leading numeric value from strings like "35.1°C" or "70%". */
@@ -259,9 +397,5 @@ public class RouterDreamService extends DreamService {
     private Integer parseLeadingInt(String s) {
         Float f = parseLeadingFloat(s);
         return f == null ? null : Math.round(f);
-    }
-
-    private void postConnStatus(String text) {
-        mainHandler.post(() -> connStatusView.setText(text));
     }
 }

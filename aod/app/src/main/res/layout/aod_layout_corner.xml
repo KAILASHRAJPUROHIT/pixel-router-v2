@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="28dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="56sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginTop="2dp"
+            android:text="---" />
+
+        <TextView
+            android:id="@+id/health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textAllCaps="true"
+            android:layout_marginTop="10dp"
+            android:text="--" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="28dp"
+        android:orientation="vertical">
+
+        <include layout="@layout/aod_row_end" android:id="@+id/row0" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row1" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row2" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row3" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row4" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row5" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row6" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row7" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row8" />
+        <include layout="@layout/aod_row_end" android:id="@+id/row9" />
+    </LinearLayout>
+
+</FrameLayout>

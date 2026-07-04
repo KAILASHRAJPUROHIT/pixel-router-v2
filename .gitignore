@@ -18,6 +18,7 @@ ai/__pycache__/
 ai/**/__pycache__/
 ai/*.pyc
 ai/data/*.jsonl
+ai/data/*.log
 ai/venv/
 ai/.venv/
 

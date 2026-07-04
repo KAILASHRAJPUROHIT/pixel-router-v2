@@ -1,0 +1,26 @@
+# --- secrets (never commit) ---
+**/dashboard.properties
+**/local_secrets.py
+
+# --- Android (aod/) ---
+aod/local.properties
+aod/.gradle/
+aod/app/build/
+aod/build/
+aod/*.iml
+aod/.idea/
+aod/captures/
+aod/.externalNativeBuild/
+aod/.cxx/
+
+# --- Python (ai/) ---
+ai/__pycache__/
+ai/**/__pycache__/
+ai/*.pyc
+ai/data/*.jsonl
+ai/venv/
+ai/.venv/
+
+# --- OS ---
+.DS_Store
+Thumbs.db

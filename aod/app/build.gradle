@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Dashboard basic-auth credentials live in dashboard.properties (gitignored,
+// not committed) rather than hardcoded in source - see
+// dashboard.properties.example for the expected format.
+def dashboardProps = new Properties()
+def dashboardPropsFile = rootProject.file('dashboard.properties')
+if (dashboardPropsFile.exists()) {
+    dashboardProps.load(new FileInputStream(dashboardPropsFile))
+}
+
+android {
+    namespace 'com.router.aod'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.router.aod"
+        minSdk 30
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        buildConfigField "String", "AUTH_USER", "\"${dashboardProps.getProperty('auth.user', 'changeme')}\""
+        buildConfigField "String", "AUTH_PASS", "\"${dashboardProps.getProperty('auth.pass', 'changeme')}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // No external libraries - HttpURLConnection (built into Android) is
+    // enough for polling the router's local dashboard, and pulling in
+    // OkHttp/Retrofit etc. would mean more Maven downloads on a
+    // connection that's already proven slow for large fetches.
+}

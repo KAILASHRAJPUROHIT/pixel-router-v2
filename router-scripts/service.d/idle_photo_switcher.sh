@@ -26,6 +26,23 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
 }
 
+switch_dream() {
+  # $1 = target component. Changing screensaver_components alone does
+  # NOT restart whichever dream is already running - DreamManagerService
+  # only re-reads it the next time a dream is triggered, so the old one
+  # just keeps going indefinitely (confirmed: Photos kept showing well
+  # past the 22:00 night cutoff, dumpsys dreams still showed
+  # mCurrentDream=Photos even though the setting already said Router
+  # AOD). Forcing a wake now - the same trick aod_watchdog.sh already
+  # uses when Doze/another dream has taken over - ends the current
+  # dream immediately; the existing 15s screen timeout then re-triggers
+  # dreaming with the now-updated component, so the switch actually
+  # takes effect right away instead of whenever the old dream happens
+  # to end on its own.
+  settings put secure screensaver_components "$1"
+  input keyevent KEYCODE_WAKEUP
+}
+
 detect_ap_if() {
   if ip addr show ap_br_wlan2 >/dev/null 2>&1; then
     echo ap_br_wlan2
@@ -70,17 +87,17 @@ while true; do
 
   if [ "$NIGHT" = "1" ]; then
     if [ "$CURRENT" != "$OUR_DREAM" ]; then
-      settings put secure screensaver_components "$OUR_DREAM"
+      switch_dream "$OUR_DREAM"
       log "Night hours ($HOUR:00) - forcing Router AOD (was: $CURRENT)"
     fi
   elif [ "$CLIENT_COUNT" = "0" ] && [ "$DELTA" -lt "$IDLE_THRESHOLD_BYTES" ]; then
     if [ "$CURRENT" != "$PHOTOS_DREAM" ]; then
-      settings put secure screensaver_components "$PHOTOS_DREAM"
+      switch_dream "$PHOTOS_DREAM"
       log "Idle (0 clients, ${DELTA}B/interval) - switched to Photos slideshow"
     fi
   else
     if [ "$CURRENT" != "$OUR_DREAM" ]; then
-      settings put secure screensaver_components "$OUR_DREAM"
+      switch_dream "$OUR_DREAM"
       log "Activity ($CLIENT_COUNT clients, ${DELTA}B/interval) - switched back to Router AOD"
     fi
   fi

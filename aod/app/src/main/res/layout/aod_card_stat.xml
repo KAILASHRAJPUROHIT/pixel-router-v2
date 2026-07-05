@@ -21,13 +21,15 @@
     <TextView
         android:id="@+id/stat_value"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
         android:textStyle="bold"
         android:maxLines="1"
         android:autoSizeTextType="uniform"
         android:autoSizeMinTextSize="14sp"
-        android:autoSizeMaxTextSize="34sp"
+        android:autoSizeMaxTextSize="90sp"
         android:autoSizeStepGranularity="1sp"
         android:text="--" />
 

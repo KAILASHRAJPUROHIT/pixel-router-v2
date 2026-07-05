@@ -12,6 +12,18 @@ while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2
 done
 
+# Airtel's carrier config on this SIM sets
+# isCarrierConfigAffirmsEntitlementCheckRequired=true (confirmed via
+# dumpsys tethering 2026-07-05), meaning Android's official Tethering
+# framework is wired to show a carrier provisioning UI when hotspot is
+# started via TetheringManager. We never use that path (we call
+# `cmd wifi start-softap` directly below, which bypasses it structurally),
+# but this is a belt-and-suspenders block in case anything - a stray tap
+# on the phone's own Settings > Hotspot toggle - ever goes through the
+# official path instead.
+resetprop net.tethering.noprovisioning true
+pm disable com.google.android.tetheringentitlement >/dev/null 2>&1
+
 # Extra delay to let the Wi-Fi/tethering services fully initialize.
 sleep 15
 

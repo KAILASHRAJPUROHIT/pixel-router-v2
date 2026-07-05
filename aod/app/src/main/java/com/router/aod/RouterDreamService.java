@@ -9,7 +9,10 @@ import android.os.Looper;
 import android.service.dreams.DreamService;
 import android.text.format.DateFormat;
 import android.util.Base64;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -126,6 +129,14 @@ public class RouterDreamService extends DreamService {
     private TextView headline1Label, headline1Value, headline2Label, headline2Value;
     private TextView healthBadge;
 
+    // Custom message: dashboard-typed text that takes over the entire
+    // screen for 5 minutes (server-enforced expiry, see update.sh/
+    // message.cgi) instead of the normal stats layout. Added as a
+    // programmatic overlay rather than a per-layout XML view so it works
+    // across all six selectable AOD layouts without touching any of them.
+    private static final String NO_MESSAGE_SENTINEL = "—"; // em dash - update.sh's "nothing active" placeholder
+    private TextView messageOverlay;
+
     private final Runnable clockTick = new Runnable() {
         @Override
         public void run() {
@@ -185,10 +196,12 @@ public class RouterDreamService extends DreamService {
     // periodically rather than once, so it actually adapts as the clock
     // crosses the day/night boundary while the dream keeps running.
     private static final long BRIGHTNESS_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 min
-    private static final int NIGHT_START_HOUR = 23;
+    // 22:00-06:00 matches idle_photo_switcher.sh's own night window, so the
+    // two mechanisms agree on when "night" starts instead of drifting apart.
+    private static final int NIGHT_START_HOUR = 22;
     private static final int NIGHT_END_HOUR = 6;
     private static final float DAY_BRIGHTNESS = 0.08f;
-    private static final float NIGHT_BRIGHTNESS = 0.02f;
+    private static final float NIGHT_BRIGHTNESS = 0.01f; // lowest usable value - anything closer to 0 risks the panel going unreadable/near-off on this display
 
     private final Runnable brightnessTick = new Runnable() {
         @Override
@@ -232,6 +245,16 @@ public class RouterDreamService extends DreamService {
         setContentView(currentLayout.layoutRes);
         bindViews();
         applyTheme(currentTheme);
+
+        messageOverlay = new TextView(this);
+        messageOverlay.setBackgroundColor(Color.BLACK);
+        messageOverlay.setTextColor(Color.WHITE);
+        messageOverlay.setGravity(Gravity.CENTER);
+        messageOverlay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
+        messageOverlay.setPadding(64, 64, 64, 64);
+        messageOverlay.setVisibility(View.GONE);
+        getWindow().addContentView(messageOverlay, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         fetchExecutor = Executors.newSingleThreadExecutor();
         mainHandler.post(clockTick);
@@ -475,6 +498,16 @@ public class RouterDreamService extends DreamService {
                         healthBadge.setText(health);
                         Integer color = statColors.get("Health");
                         healthBadge.setTextColor(color != null ? color : currentTheme.textMuted);
+                    }
+                }
+                if (messageOverlay != null) {
+                    String customMessage = stats.get("Custom Message");
+                    if (customMessage != null && !customMessage.isEmpty()
+                            && !customMessage.equals(NO_MESSAGE_SENTINEL)) {
+                        messageOverlay.setText(customMessage);
+                        messageOverlay.setVisibility(View.VISIBLE);
+                    } else {
+                        messageOverlay.setVisibility(View.GONE);
                     }
                 }
             });

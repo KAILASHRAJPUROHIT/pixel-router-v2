@@ -231,6 +231,37 @@ while true; do
     ROWS="<tr><td colspan=3>No devices connected</td></tr>"
   fi
 
+  # AOD status: which Daydream is currently active. idle_photo_switcher.sh
+  # flips this between our own stats AOD and Google Photos' built-in
+  # screensaver based on idleness/time of day - surface which one is live
+  # right now rather than leaving that invisible outside the phone itself.
+  CURRENT_DREAM=$(settings get secure screensaver_components 2>/dev/null)
+  case "$CURRENT_DREAM" in
+    *router.aod*) AOD_LABEL="Stats"; AOD_COLOR="#2ecc71" ;;
+    *photos*) AOD_LABEL="Photos"; AOD_COLOR="#3498db" ;;
+    *) AOD_LABEL="Off"; AOD_COLOR="#e74c3c" ;;
+  esac
+
+  # Custom message: message.cgi (posted from the form below) writes an
+  # expiry epoch + text to this file. Only surface it here while still
+  # within its 5-minute window - RouterDreamService.java picks this stat
+  # up the same way it already does every other one (generic label/value
+  # regex parse) and covers the whole AOD screen with it.
+  MSG_STATE=/data/adb/dashboard/custom_message.txt
+  CUSTOM_MESSAGE="—"
+  if [ -f "$MSG_STATE" ]; then
+    MSG_EXPIRY=$(sed -n '1p' "$MSG_STATE")
+    MSG_TEXT=$(sed -n '2,$p' "$MSG_STATE")
+    NOW_EPOCH=$(date +%s)
+    if [ -n "$MSG_EXPIRY" ] && [ "$NOW_EPOCH" -lt "$MSG_EXPIRY" ] 2>/dev/null; then
+      CUSTOM_MESSAGE="$MSG_TEXT"
+    fi
+  fi
+  # HTML-escape before embedding - this is free-form user input going
+  # straight into the page, and it also has to stay parseable by the
+  # AOD's label/value regex (which stops at the first "<").
+  CUSTOM_MESSAGE_ESC=$(printf '%s' "$CUSTOM_MESSAGE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+
   NOW_TIME=$(date '+%H:%M')
   NOW_DATE=$(date '+%a, %d %b')
 
@@ -269,6 +300,14 @@ while true; do
 <div class="stat"><div class="label">Internet</div><div class="value colored" style="--c:${NET_COLOR}">${NET_LABEL}</div></div>
 <div class="stat"><div class="label">Signal</div><div class="value colored" style="--c:${SIGNAL_COLOR}">${SIGNAL_LABEL}</div></div>
 <div class="stat"><div class="label">Health</div><div class="value colored" style="--c:${HEALTH_COLOR}">${HEALTH_LABEL}</div></div>
+<div class="stat"><div class="label">AOD Status</div><div class="value colored" style="--c:${AOD_COLOR}">${AOD_LABEL}</div></div>
+<div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
+<form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
+  <input type="text" name="message" maxlength="200" placeholder="Send a message home..."
+    style="width:100%; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
+  <button type="submit"
+    style="margin-top:8px; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD (5 min)</button>
+</form>
 <table>
 <tr><th>Device IP</th><th>MAC</th><th>Total Used</th></tr>
 ${ROWS}

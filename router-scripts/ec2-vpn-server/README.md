@@ -48,6 +48,15 @@ fail2ban watches it for repeated 401s:
   `sudo fail2ban-regex /var/log/caddy/access.log /etc/fail2ban/filter.d/caddy-dashboard-auth.conf`
   before trusting it.
 
+**If you ever get locked out yourself** (e.g. sharing a NAT'd IP on a
+mobile network with someone else who trips the ban) - the jail only
+covers ports `http`/`https`, it never touches SSH. SSH in and run:
+```
+sudo fail2ban-client set caddy-dashboard-auth unbanip <your-ip>
+```
+to lift the ban immediately, or `sudo fail2ban-client status
+caddy-dashboard-auth` first if you're not sure which IP got banned.
+
 ## WireGuard
 
 Server-side WireGuard config isn't duplicated here since it contains

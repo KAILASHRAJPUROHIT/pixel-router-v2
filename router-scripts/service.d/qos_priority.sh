@@ -1,17 +1,15 @@
 #!/system/bin/sh
-# Best-effort QoS: gives one priority device (e.g. the Android TV, for
+# Best-effort QoS: gives one priority device (the Android TV, for
 # smooth streaming) egress priority over the shared cellular uplink
 # during contention, using a classic prio+fq_codel setup - the same
-# general approach OpenWrt's SQM uses. NEEDS ON-DEVICE VERIFICATION:
-# whether this kernel's `tc` binary/module support is present at all is
-# unknown until tested live - this script checks and logs rather than
-# assuming.
+# general approach OpenWrt's SQM uses. Confirmed working on-device
+# 2026-07-05 (this kernel's `tc` binary is present and functional).
 #
 # PRIORITY_MAC must be set to the actual priority device's MAC address
 # before this does anything - leave unset/empty to disable.
 
 LOG=/data/adb/dashboard/qos_priority.log
-PRIORITY_MAC=""   # TODO: set once we identify the TV's real MAC on-device
+PRIORITY_MAC="1c:d1:d7:b9:36:f2"   # Android TV, confirmed 2026-07-05
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"

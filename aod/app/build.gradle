@@ -2,14 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
-// Dashboard basic-auth credentials live in dashboard.properties (gitignored,
-// not committed) rather than hardcoded in source - see
-// dashboard.properties.example for the expected format.
-def dashboardProps = new Properties()
-def dashboardPropsFile = rootProject.file('dashboard.properties')
-if (dashboardPropsFile.exists()) {
-    dashboardProps.load(new FileInputStream(dashboardPropsFile))
-}
+// Dashboard basic-auth credentials are NOT compiled into the APK -
+// security audit 2026-07-05 found the previous BuildConfig approach put
+// the plaintext password in the DEX constant pool, extractable with a
+// plain `strings` command on the APK. Credentials now load at runtime
+// from a private-app-data file (see RouterDreamService.loadCredentials
+// and dashboard.properties.example for the deployment step).
 
 android {
     namespace 'com.router.aod'
@@ -21,13 +19,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-
-        buildConfigField "String", "AUTH_USER", "\"${dashboardProps.getProperty('auth.user', 'changeme')}\""
-        buildConfigField "String", "AUTH_PASS", "\"${dashboardProps.getProperty('auth.pass', 'changeme')}\""
-    }
-
-    buildFeatures {
-        buildConfig true
     }
 
     buildTypes {

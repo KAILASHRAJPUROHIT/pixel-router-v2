@@ -1,4 +1,18 @@
 # Copy this file to dashboard.properties (gitignored) and fill in your
-# router dashboard's real basic-auth credentials before building.
+# router dashboard's real basic-auth credentials.
+#
+# Security audit 2026-07-05: this file is no longer read by build.gradle
+# (that baked the credentials into the APK's DEX in plaintext,
+# extractable with `strings` on the APK). Instead, push this file
+# directly to the app's private data directory after each install,
+# where it's only readable by the app's own UID:
+#
+#   adb push dashboard.properties /data/local/tmp/dashboard_auth.properties
+#   adb shell su -c "mv /data/local/tmp/dashboard_auth.properties \
+#     /data/data/com.router.aod/files/dashboard_auth.properties && \
+#     chown u0_a<uid>:u0_a<uid> /data/data/com.router.aod/files/dashboard_auth.properties && \
+#     chmod 600 /data/data/com.router.aod/files/dashboard_auth.properties"
+#
+# (find the app's actual uid with `stat -c %u /data/data/com.router.aod`)
 auth.user=changeme
 auth.pass=changeme

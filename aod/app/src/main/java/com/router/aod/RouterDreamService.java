@@ -43,10 +43,32 @@ import java.util.regex.Pattern;
 public class RouterDreamService extends DreamService {
 
     private static final String DASHBOARD_URL = "http://127.0.0.1:8080/";
-    // Credentials come from dashboard.properties (gitignored, not
-    // committed) via BuildConfig - see dashboard.properties.example.
-    private static final String AUTH_USER = BuildConfig.AUTH_USER;
-    private static final String AUTH_PASS = BuildConfig.AUTH_PASS;
+    // Credentials load at runtime from a file in this app's private data
+    // directory (dashboard_auth.properties, mode 600, owned by this
+    // app's own UID - readable by nothing else on the device) instead of
+    // being compiled into the APK. Security audit 2026-07-05 found the
+    // previous approach (BuildConfig.AUTH_USER/AUTH_PASS) put the
+    // dashboard password in the DEX constant pool in plaintext,
+    // extractable from the APK with a plain `strings` command - low risk
+    // while the dashboard was LAN-only, worth fixing now that it's
+    // reachable from the public internet. See README for how the
+    // private-data file gets deployed (adb push + chown after install).
+    private String authUser = "changeme";
+    private String authPass = "changeme";
+
+    private void loadCredentials() {
+        java.io.File authFile = new java.io.File(getFilesDir(), "dashboard_auth.properties");
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new java.io.FileInputStream(authFile), StandardCharsets.UTF_8))) {
+            java.util.Properties props = new java.util.Properties();
+            props.load(reader);
+            authUser = props.getProperty("auth.user", "changeme");
+            authPass = props.getProperty("auth.pass", "changeme");
+        } catch (Exception ignored) {
+            // File missing (not deployed yet) - falls back to "changeme",
+            // matching the previous BuildConfig default behavior.
+        }
+    }
     private static final long POLL_INTERVAL_MS = 5000;
     private static final long CLOCK_TICK_MS = 1000;
 
@@ -196,6 +218,8 @@ public class RouterDreamService extends DreamService {
         // draw and heat on a screen that stays on continuously, since
         // display brightness dominates over the lightweight 5s poll loop.
         setScreenBright(false);
+
+        loadCredentials();
 
         SharedPreferences prefs = getSharedPreferences(
                 AodSettingsActivity.PREFS_NAME, MODE_PRIVATE);
@@ -369,7 +393,7 @@ public class RouterDreamService extends DreamService {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(4000);
             conn.setReadTimeout(4000);
-            String credentials = AUTH_USER + ":" + AUTH_PASS;
+            String credentials = authUser + ":" + authPass;
             String basicAuth = "Basic " + Base64.encodeToString(
                     credentials.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
             conn.setRequestProperty("Authorization", basicAuth);

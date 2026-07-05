@@ -276,5 +276,11 @@ ${ROWS}
 </body>
 </html>
 EOF
+  # Security audit 2026-07-05 found this file world-writable (666) -
+  # the umask in whatever context this loop runs under produces that
+  # for the .tmp file, and mv preserves it. Now served on a public
+  # HTTPS URL, so explicitly re-assert 644 every cycle rather than
+  # trust the ambient umask.
+  chmod 644 "$WWW/index.html.tmp"
   mv "$WWW/index.html.tmp" "$WWW/index.html"
 done

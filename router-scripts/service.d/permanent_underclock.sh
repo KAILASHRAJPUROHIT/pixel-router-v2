@@ -34,6 +34,16 @@ settings put secure doze_enabled 0
 #     never wakes/interrupts the AOD display - found 2026-07-05. ---
 settings put global heads_up_notifications_enabled 0
 
+# --- Force wireless ADB off on every boot - security audit 2026-07-05
+#     found it enabled and actively listening on all interfaces
+#     (0.0.0.0:44859), reachable from any device on the hotspot. This
+#     device is rooted with a permissive Magisk policy, so a successful
+#     adb connection is effectively full root access - a serious attack
+#     surface with no legitimate use for a stationary router. USB
+#     debugging (adb_enabled) is left alone since that's how this
+#     device is actually managed. ---
+settings put global adb_wifi_enabled 0
+
 # --- CPU: cap each core to ~70% of its own max as a permanent baseline. ---
 for i in 0 1 2 3 4 5 6 7; do
   F="/sys/devices/system/cpu/cpu$i/cpufreq"

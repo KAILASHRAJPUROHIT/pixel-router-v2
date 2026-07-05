@@ -28,6 +28,26 @@ on the phone (see `aod/dashboard.properties.example` /
 `ai/local_secrets.py.example`) - Caddy is just a TLS-terminating proxy,
 not a second auth layer.
 
+## Brute-force protection (fail2ban)
+
+Security audit 2026-07-05: the dashboard is now public, and neither
+Caddy nor busybox httpd rate-limit or lock out repeated basic-auth
+failures on their own. Caddy logs every request as JSON to
+`/var/log/caddy/access.log` (configured in `Caddyfile` above), and
+fail2ban watches it for repeated 401s:
+
+- `fail2ban/caddy-dashboard-auth.filter.conf` -> copy to
+  `/etc/fail2ban/filter.d/caddy-dashboard-auth.conf`
+- `fail2ban/caddy-dashboard-auth.jail.conf` -> copy to
+  `/etc/fail2ban/jail.d/caddy-dashboard-auth.conf`
+- 5 failed logins from the same IP within 10 minutes bans that IP for
+  1 hour (firewalled via iptables, fail2ban's default backend).
+- `sudo systemctl restart fail2ban` after copying, then
+  `sudo fail2ban-client status caddy-dashboard-auth` to confirm the
+  jail is active. Test the regex against real log lines first with
+  `sudo fail2ban-regex /var/log/caddy/access.log /etc/fail2ban/filter.d/caddy-dashboard-auth.conf`
+  before trusting it.
+
 ## WireGuard
 
 Server-side WireGuard config isn't duplicated here since it contains

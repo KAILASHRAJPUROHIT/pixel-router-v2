@@ -25,8 +25,14 @@ settings put system min_refresh_rate 60
 #     AOD Dream (pixel-router-aod) can actually take over during idle
 #     instead of being pre-empted by stock ambient display - found
 #     2026-07-04 that Doze otherwise wins priority over a user Dream
-#     whenever the hardware ambient display is available and enabled. ---
+#     whenever the hardware ambient display is available and enabled.
+#     (aod_watchdog.sh re-asserts this + related settings periodically,
+#     since they've been observed to silently revert on their own.) ---
 settings put secure doze_enabled 0
+
+# --- Disable heads-up notification banners so an incoming notification
+#     never wakes/interrupts the AOD display - found 2026-07-05. ---
+settings put global heads_up_notifications_enabled 0
 
 # --- CPU: cap each core to ~70% of its own max as a permanent baseline. ---
 for i in 0 1 2 3 4 5 6 7; do
@@ -55,4 +61,4 @@ if [ -d "$GF" ]; then
   fi
 fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') - permanent underclock + 60Hz lock + doze disabled applied" >> /data/adb/dashboard/underclock.log
+echo "$(date '+%Y-%m-%d %H:%M:%S') - permanent underclock + 60Hz lock + doze disabled + heads-up disabled applied" >> /data/adb/dashboard/underclock.log

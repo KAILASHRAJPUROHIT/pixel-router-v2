@@ -14,6 +14,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -48,6 +50,17 @@ public class RouterDreamService extends DreamService {
     private static final long POLL_INTERVAL_MS = 5000;
     private static final long CLOCK_TICK_MS = 1000;
 
+    // Weather: fixed location (this router is stationary, not carried
+    // around, and location services are disabled device-wide - see
+    // project notes). Open-Meteo needs no API key/account.
+    // Coordinates: Boisar, Maharashtra.
+    private static final String WEATHER_URL =
+            "https://api.open-meteo.com/v1/forecast?latitude=19.8036&longitude=72.7560"
+                    + "&current=temperature_2m,weather_code"
+                    + "&daily=temperature_2m_max,temperature_2m_min"
+                    + "&timezone=Asia%2FKolkata";
+    private static final long WEATHER_POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 min
+
     // Safety cutoffs: a full-brightness polling screen is worth pausing if
     // the device is already running hot or the battery is already low -
     // ends the dream (screen returns to normal sleep) rather than adding
@@ -80,8 +93,12 @@ public class RouterDreamService extends DreamService {
 
     private AodTheme currentTheme;
 
-    private View bgRoot, panel1, panel2, panel3, railBg, divider1;
-    private TextView clockView, dateView;
+    private View bgRoot, panel1, panel2, panel3, railBg, divider1, panchangCard, weatherCard;
+    private final View[] rowViews = new View[STAT_KEYS.length];
+    private TextView clockView, dateView, panchangView;
+    private TextView panchangHeaderView, panchangTithiView, panchangNakshatraView;
+    private TextView weatherTempView, weatherConditionView;
+    private int lastPanchangDay = -1;
     private final TextView[] labelViews = new TextView[STAT_KEYS.length];
     private final TextView[] valueViews = new TextView[STAT_KEYS.length];
     private TextView headline1Label, headline1Value, headline2Label, headline2Value;
@@ -100,6 +117,16 @@ public class RouterDreamService extends DreamService {
         public void run() {
             fetchExecutor.execute(RouterDreamService.this::fetchAndUpdate);
             mainHandler.postDelayed(this, POLL_INTERVAL_MS);
+        }
+    };
+
+    private final Runnable weatherTick = new Runnable() {
+        @Override
+        public void run() {
+            if (weatherTempView != null || weatherConditionView != null) {
+                fetchExecutor.execute(RouterDreamService.this::fetchAndUpdateWeather);
+            }
+            mainHandler.postDelayed(this, WEATHER_POLL_INTERVAL_MS);
         }
     };
 
@@ -185,6 +212,7 @@ public class RouterDreamService extends DreamService {
         fetchExecutor = Executors.newSingleThreadExecutor();
         mainHandler.post(clockTick);
         mainHandler.post(pollTick);
+        mainHandler.post(weatherTick);
         burnInShiftIndex = 0;
         mainHandler.postDelayed(burnInShiftTick, BURN_IN_SHIFT_INTERVAL_MS);
         applyAdaptiveBrightness();
@@ -196,6 +224,7 @@ public class RouterDreamService extends DreamService {
         super.onDetachedFromWindow();
         mainHandler.removeCallbacks(clockTick);
         mainHandler.removeCallbacks(pollTick);
+        mainHandler.removeCallbacks(weatherTick);
         mainHandler.removeCallbacks(burnInShiftTick);
         mainHandler.removeCallbacks(brightnessTick);
         if (fetchExecutor != null) {
@@ -210,6 +239,14 @@ public class RouterDreamService extends DreamService {
     private void bindViews() {
         clockView = findViewById(R.id.clock);
         dateView = findViewById(R.id.date);
+        panchangView = findViewById(R.id.panchang);
+        panchangHeaderView = findViewById(R.id.panchang_header);
+        panchangTithiView = findViewById(R.id.panchang_tithi);
+        panchangNakshatraView = findViewById(R.id.panchang_nakshatra);
+        weatherTempView = findViewById(R.id.weather_temp);
+        weatherConditionView = findViewById(R.id.weather_condition);
+        panchangCard = findViewById(R.id.panchang_card);
+        weatherCard = findViewById(R.id.weather_card);
         bgRoot = findViewById(R.id.bg_root);
         panel1 = findViewById(R.id.panel_1);
         panel2 = findViewById(R.id.panel_2);
@@ -224,6 +261,7 @@ public class RouterDreamService extends DreamService {
 
         for (int i = 0; i < ROW_IDS.length; i++) {
             View row = findViewById(ROW_IDS[i]);
+            rowViews[i] = row;
             labelViews[i] = row.findViewById(R.id.stat_label);
             valueViews[i] = row.findViewById(R.id.stat_value);
             labelViews[i].setText(STAT_KEYS[i]);
@@ -249,6 +287,18 @@ public class RouterDreamService extends DreamService {
             if (bold != null) clockView.setTypeface(bold);
         }
         if (dateView != null) dateView.setTextColor(theme.textMuted);
+        if (panchangView != null) panchangView.setTextColor(theme.textMuted);
+        if (panchangHeaderView != null) panchangHeaderView.setTextColor(theme.accent);
+        if (panchangTithiView != null) panchangTithiView.setTextColor(theme.textPrimary);
+        if (panchangNakshatraView != null) panchangNakshatraView.setTextColor(theme.textMuted);
+        if (weatherTempView != null) weatherTempView.setTextColor(theme.textPrimary);
+        if (weatherConditionView != null) weatherConditionView.setTextColor(theme.textMuted);
+
+        for (View row : rowViews) {
+            tintPanelIfPresent(row, theme.panel);
+        }
+        tintPanelIfPresent(panchangCard, theme.panel);
+        tintPanelIfPresent(weatherCard, theme.panel);
         if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
 
         for (int i = 0; i < labelViews.length; i++) {
@@ -275,12 +325,42 @@ public class RouterDreamService extends DreamService {
         }
     }
 
+    /**
+     * Same as tintPanel, but never invents a background where none
+     * exists - used for the generic row0..row9 views, which are plain
+     * (backgroundless) in most layouts and should stay that way.
+     */
+    private void tintPanelIfPresent(View panel, int color) {
+        if (panel == null) return;
+        Drawable bg = panel.getBackground();
+        if (bg == null) return;
+        bg = bg.mutate();
+        bg.setTint(color);
+        panel.setBackground(bg);
+    }
+
     private void updateClock() {
         Calendar now = Calendar.getInstance();
         String time = DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm", now).toString();
         String date = DateFormat.format("EEE, d MMM", now).toString();
         if (clockView != null) clockView.setText(time);
         if (dateView != null) dateView.setText(date);
+
+        int dayOfYear = now.get(Calendar.DAY_OF_YEAR);
+        boolean wantsPanchang = panchangView != null || panchangTithiView != null;
+        if (wantsPanchang && dayOfYear != lastPanchangDay) {
+            lastPanchangDay = dayOfYear;
+            HinduPanchang.Result panchang = HinduPanchang.compute(now);
+            if (panchangView != null) {
+                panchangView.setText(panchang.paksha + " " + panchang.tithi + " · " + panchang.nakshatra);
+            }
+            if (panchangTithiView != null) {
+                panchangTithiView.setText(panchang.paksha + " " + panchang.tithi);
+            }
+            if (panchangNakshatraView != null) {
+                panchangNakshatraView.setText(panchang.nakshatra);
+            }
+        }
     }
 
     private void fetchAndUpdate() {
@@ -377,6 +457,77 @@ public class RouterDreamService extends DreamService {
         } catch (Exception ignored) {
             // Best-effort poll - a single failed fetch just leaves the
             // last-known values on screen until the next cycle succeeds.
+        }
+    }
+
+    private void fetchAndUpdateWeather() {
+        try {
+            URL url = new URL(WEATHER_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(6000);
+
+            int code = conn.getResponseCode();
+            if (code != 200) return;
+
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    body.append(line);
+                }
+            }
+            conn.disconnect();
+
+            JSONObject root = new JSONObject(body.toString());
+            JSONObject current = root.getJSONObject("current");
+            double temp = current.getDouble("temperature_2m");
+            int weatherCode = current.getInt("weather_code");
+
+            JSONObject daily = root.getJSONObject("daily");
+            double high = daily.getJSONArray("temperature_2m_max").getDouble(0);
+            double low = daily.getJSONArray("temperature_2m_min").getDouble(0);
+
+            String condition = weatherCodeToText(weatherCode);
+            String tempText = Math.round(temp) + "°";
+            String rangeText = condition + " · H" + Math.round(high) + " L" + Math.round(low);
+
+            mainHandler.post(() -> {
+                if (weatherTempView != null) weatherTempView.setText(tempText);
+                if (weatherConditionView != null) weatherConditionView.setText(rangeText);
+            });
+        } catch (Exception ignored) {
+            // Best-effort - keeps last-known weather on screen until the
+            // next successful poll, same as the dashboard stat fetch.
+        }
+    }
+
+    /** Maps Open-Meteo's WMO weather codes to a short display label. */
+    private String weatherCodeToText(int code) {
+        switch (code) {
+            case 0: return "Clear";
+            case 1: return "Mostly clear";
+            case 2: return "Partly cloudy";
+            case 3: return "Cloudy";
+            case 45:
+            case 48: return "Fog";
+            case 51:
+            case 53:
+            case 55: return "Drizzle";
+            case 61:
+            case 63:
+            case 65: return "Rain";
+            case 71:
+            case 73:
+            case 75: return "Snow";
+            case 80:
+            case 81:
+            case 82: return "Rain showers";
+            case 95:
+            case 96:
+            case 99: return "Thunderstorm";
+            default: return "—";
         }
     }
 

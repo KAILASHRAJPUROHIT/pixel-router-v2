@@ -61,6 +61,17 @@ check_hotspot() {
       cmd wifi stop-softap >/dev/null 2>&1
       sleep 2
       cmd wifi start-softap "$SSID" wpa2 "$PASS" >/dev/null 2>&1
+      # PMF-disable fix (2026-07-06, see hotspot_on_boot.sh) - Android
+      # regenerates the hostapd conf with ieee80211w=1 (PMF optional)
+      # every start-softap, which is incompatible with some client
+      # WiFi drivers on plain WPA2 (confirmed against a real laptop).
+      sleep 5
+      HOSTAPD_CONF=/data/vendor/wifi/hostapd/hostapd_wlan2.conf
+      if [ -f "$HOSTAPD_CONF" ]; then
+        sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
+        HOSTAPD_PID=$(pgrep -x hostapd)
+        [ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
+      fi
     else
       log "Could not read real SSID/password from WifiConfigStoreSoftAp.xml - not restarting with a guessed fallback"
     fi

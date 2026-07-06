@@ -53,4 +53,24 @@ PASS=$(cat "$CFG" 2>/dev/null | grep "Passphrase" | sed -E 's/.*>([^<]*)<.*/\1/'
 cmd wifi stop-softap >/dev/null 2>&1
 sleep 2
 cmd wifi start-softap "$SSID" wpa2 "$PASS"
-echo "$(date '+%Y-%m-%d %H:%M:%S') - hotspot started with SSID=$SSID" >> /data/adb/dashboard/hotspot_boot.log
+
+# Confirmed 2026-07-06: Android regenerates hostapd_wlan2.conf on every
+# start-softap with ieee80211w=1 (PMF/802.11w set to "optional") - this
+# combination (PMF-optional alongside plain WPA2, not WPA3) broke a
+# laptop that had connected fine the day before (a real client
+# WiFi-driver incompatibility, not a password/config error - verified
+# via the laptop failing with the exact correct password, then
+# connecting successfully the instant PMF was disabled). There's no
+# `cmd wifi`/Settings toggle for this, so the fix is: wait for hostapd
+# to start, patch its live config file, then send SIGHUP to make it
+# reload without dropping the AP (a SIGKILL here just kills hostapd
+# with no auto-restart - confirmed the hard way).
+sleep 5
+HOSTAPD_CONF=/data/vendor/wifi/hostapd/hostapd_wlan2.conf
+if [ -f "$HOSTAPD_CONF" ]; then
+  sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
+  HOSTAPD_PID=$(pgrep -x hostapd)
+  [ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
+fi
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - hotspot started with SSID=$SSID (PMF disabled for client compatibility)" >> /data/adb/dashboard/hotspot_boot.log

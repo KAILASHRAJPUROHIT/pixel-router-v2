@@ -77,6 +77,8 @@ set_internet_type() {
 #   phone2.password=xxxxxxxx
 #   home.lat=19.8036
 #   home.lon=72.7560
+#   phone1.mac=xx:xx:xx:xx:xx:xx   (as seen connected to PILLYBOO - for the WiFi presence tier)
+#   phone2.mac=xx:xx:xx:xx:xx:xx
 load_config() {
   PHONE1_NUMBER=$(grep "^phone1.number=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_SSID=$(grep "^phone1.ssid=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
@@ -86,6 +88,28 @@ load_config() {
   PHONE2_PASSWORD=$(grep "^phone2.password=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   HOME_LAT=$(grep "^home.lat=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   HOME_LON=$(grep "^home.lon=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  PHONE1_MAC=$(grep "^phone1.mac=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  PHONE2_MAC=$(grep "^phone2.mac=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+}
+
+detect_ap_if() {
+  if ip addr show ap_br_wlan2 >/dev/null 2>&1; then
+    echo ap_br_wlan2
+  else
+    echo wlan2
+  fi
+}
+
+# Cheapest/fastest presence tier: is this MAC currently a connected
+# client on our OWN hotspot right now? Only catches phones that happen
+# to have WiFi on - both phones normally keep it off at home to avoid
+# loading the router, so this is a "best case, skip the SMS round-trip
+# if we get lucky" check, not the primary mechanism.
+wifi_presence_check() {
+  MAC="$1"
+  [ -z "$MAC" ] && return 1
+  AP_IF=$(detect_ap_if)
+  ip neigh show dev "$AP_IF" 2>/dev/null | grep -qi "$MAC"
 }
 
 detect_wan_if() {
@@ -165,20 +189,46 @@ read_location_reply() {
 
 # Queries both phones' locations, waits for replies, and returns
 # (via stdout, one per line) the number of each phone confirmed to be
-# within HOME_RADIUS_KM of home. This is the actual "is home" decision -
-# WiFi/LAN presence isn't reliable here since both phones normally keep
-# WiFi off at home specifically to avoid loading the router.
+# within HOME_RADIUS_KM of home. Tries the cheap WiFi-presence tier
+# first (skips the SMS round-trip entirely if a phone happens to have
+# WiFi on); only falls through to the SMS/GPS handshake for whichever
+# phone(s) the WiFi check didn't confirm.
 find_phones_at_home() {
+  FOUND1=0
+  FOUND2=0
+
+  if wifi_presence_check "$PHONE1_MAC"; then
+    log "Phone1 confirmed home via WiFi presence (connected to PILLYBOO) - skipping SMS query"
+    echo "1"
+    FOUND1=1
+  fi
+  if wifi_presence_check "$PHONE2_MAC"; then
+    log "Phone2 confirmed home via WiFi presence (connected to PILLYBOO) - skipping SMS query"
+    echo "2"
+    FOUND2=1
+  fi
+
+  # Only phones not already confirmed via WiFi need the SMS/GPS handshake.
+  NEED_SMS1=0; [ "$FOUND1" = "0" ] && [ -n "$PHONE1_NUMBER" ] && NEED_SMS1=1
+  NEED_SMS2=0; [ "$FOUND2" = "0" ] && [ -n "$PHONE2_NUMBER" ] && NEED_SMS2=1
+  if [ "$NEED_SMS1" = "0" ] && [ "$NEED_SMS2" = "0" ]; then
+    return
+  fi
+
   # Clear out any stale reply files from a previous round so an old
   # location can't be mistaken for a fresh one.
   rm -f "$APP_FILES_DIR"/location_*.txt 2>/dev/null
 
-  [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE1_NUMBER"; }
-  [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE2_NUMBER"; }
+  [ "$NEED_SMS1" = "1" ] && { send_sms "$PHONE1_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE1_NUMBER"; }
+  [ "$NEED_SMS2" = "1" ] && { send_sms "$PHONE2_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE2_NUMBER"; }
+
+  # Phones already confirmed via WiFi count as "found" for the loop's
+  # exit condition below - only the ones needing SMS should keep it
+  # spinning.
+  FOUND1=$([ "$NEED_SMS1" = "1" ] && echo 0 || echo 1)
+  FOUND2=$([ "$NEED_SMS2" = "1" ] && echo 0 || echo 1)
 
   ELAPSED=0
-  FOUND1=0
-  FOUND2=0
   while [ "$ELAPSED" -lt "$LOCATION_REPLY_TIMEOUT" ]; do
     sleep 5
     ELAPSED=$((ELAPSED + 5))

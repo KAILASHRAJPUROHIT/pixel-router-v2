@@ -536,9 +536,15 @@ ${SMS_ROWS}
 // Polls speed.json (written every 2s by speed_monitor.sh, a dedicated
 // fast-sampling loop separate from this page's own ~10-15s regeneration
 // cycle) so Down/Up feels live without a full page reload interrupting
-// scroll position or in-progress form input every 10s.
+// scroll position or in-progress form input every 10s. A ?t= cache-buster
+// is appended on top of {cache:'no-store'} - confirmed 2026-07-06 the
+// backend/JSON endpoint itself was updating correctly end-to-end (direct
+// curl through the public URL showed real changing values) whenever this
+// was reported as "frozen", so the fix is to remove any possibility of an
+// intermediate cache (browser disk cache, a proxy) serving a stale copy,
+// not a server-side change.
 setInterval(function() {
-  fetch('/speed.json', {cache: 'no-store'})
+  fetch('/speed.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r) { return r.json(); })
     .then(function(d) {
       document.getElementById('speed-down').textContent = d.down;

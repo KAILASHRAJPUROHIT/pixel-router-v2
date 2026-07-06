@@ -1,0 +1,20 @@
+# Copy to /data/adb/dashboard/failover.properties on the phone (gitignored,
+# never committed) with your real values. Used by failover_monitor.sh.
+#
+# phoneN.ssid must exactly match the iPhone's Personal Hotspot name as it
+# appears in Wi-Fi scans (Settings > Personal Hotspot > Wi-Fi Password
+# screen on the iPhone shows both the name and password).
+#
+# Each iPhone also needs its own Shortcuts personal automation set up
+# (Shortcuts app > Automation > Create Personal Automation > Message >
+# "Message Contains" = FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE (must match
+# SMS_TRIGGER_PHRASE in failover_monitor.sh exactly) > Run Immediately
+# (not "Ask Before Running") > Action: Set Personal Hotspot > On.
+
+phone1.number=+91XXXXXXXXXX
+phone1.ssid=CHANGEME iPhone hotspot name
+phone1.password=CHANGEME
+
+phone2.number=+91XXXXXXXXXX
+phone2.ssid=CHANGEME iPhone hotspot name
+phone2.password=CHANGEME

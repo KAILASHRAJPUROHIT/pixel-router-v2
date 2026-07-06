@@ -2,6 +2,7 @@
 **/dashboard.properties
 **/local_secrets.py
 **/*.pem
+**/failover.properties
 
 # --- Android (aod/) ---
 aod/local.properties

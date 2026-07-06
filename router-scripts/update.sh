@@ -242,6 +242,15 @@ while true; do
     *) AOD_LABEL="Off"; AOD_COLOR="#e74c3c" ;;
   esac
 
+  # Internet type: self (own cellular) or borrowed (failed over to a
+  # family member's iPhone hotspot) - written by failover_monitor.sh.
+  INTERNET_TYPE=$(cat /data/adb/dashboard/internet_type 2>/dev/null)
+  if [ "$INTERNET_TYPE" = "borrowed" ]; then
+    INTERNET_TYPE_LABEL="Borrowed"; INTERNET_TYPE_COLOR="#f1c40f"
+  else
+    INTERNET_TYPE_LABEL="Self"; INTERNET_TYPE_COLOR="#2ecc71"
+  fi
+
   # Custom message: message.cgi (posted from the form below) writes an
   # expiry epoch + text to this file. Only surface it here while still
   # within its 5-minute window - RouterDreamService.java picks this stat
@@ -313,6 +322,7 @@ while true; do
 <div class="stat"><div class="label">AOD Status</div><div class="value colored" style="--c:${AOD_COLOR}">${AOD_LABEL}</div></div>
 <div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
 <div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
+<div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
 <div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
   <input type="text" name="message" maxlength="200" placeholder="Send a message home..."

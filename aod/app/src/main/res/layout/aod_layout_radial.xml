@@ -62,4 +62,13 @@
         android:alpha="0.6"
         android:text="--" />
 
+    <TextView
+        android:id="@+id/net_type_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="100dp"
+        android:textSize="10sp"
+        android:text="--" />
+
 </FrameLayout>

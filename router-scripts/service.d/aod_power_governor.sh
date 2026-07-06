@@ -14,8 +14,15 @@
 LOG=/data/adb/dashboard/aod_power_governor.log
 THERMAL_STATE_FILE=/data/adb/dashboard/thermal_throttled
 STATE_FILE=/data/adb/dashboard/aod_power_state
+DREAM_STATE_FILE=/data/data/com.router.aod/files/dream_state
 CPU_COUNT=8
 POLL_INTERVAL=2
+# RouterDreamService now writes DREAM_STATE_FILE on attach/detach, so
+# most polls can skip the heavier "dumpsys power" call entirely. Falls
+# back to dumpsys if that file is missing or older than this many
+# seconds (app not running, crashed, or reinstalled) so a stale file
+# can never wedge the governor in the wrong tier.
+DREAM_STATE_MAX_AGE_SEC=30
 
 # Idle-AOD tier: well below the 70%/60% permanent baseline, but not so
 # low it visibly stutters displaying stats or the Photos slideshow's
@@ -72,23 +79,38 @@ while true; do
     continue
   fi
 
-  WAKEFULNESS=$(dumpsys power 2>/dev/null | grep -m1 mWakefulness= | sed 's/.*mWakefulness=//')
+  WANT_STATE=""
+  SOURCE=""
+  if [ -f "$DREAM_STATE_FILE" ]; then
+    NOW_EPOCH=$(date +%s)
+    FILE_EPOCH=$(stat -c %Y "$DREAM_STATE_FILE" 2>/dev/null || echo 0)
+    if [ $((NOW_EPOCH - FILE_EPOCH)) -le "$DREAM_STATE_MAX_AGE_SEC" ]; then
+      case "$(cat "$DREAM_STATE_FILE" 2>/dev/null)" in
+        dreaming) WANT_STATE="aod"; SOURCE="dream_state=dreaming" ;;
+        awake) WANT_STATE="base"; SOURCE="dream_state=awake" ;;
+      esac
+    fi
+  fi
 
-  if [ "$WAKEFULNESS" = "Awake" ]; then
-    WANT_STATE="base"
-  else
-    WANT_STATE="aod"
+  if [ -z "$WANT_STATE" ]; then
+    WAKEFULNESS=$(dumpsys power 2>/dev/null | grep -m1 mWakefulness= | sed 's/.*mWakefulness=//')
+    if [ "$WAKEFULNESS" = "Awake" ]; then
+      WANT_STATE="base"
+    else
+      WANT_STATE="aod"
+    fi
+    SOURCE="wakefulness=$WAKEFULNESS"
   fi
 
   if [ "$WANT_STATE" != "$LAST_STATE" ]; then
     if [ "$WANT_STATE" = "aod" ]; then
       set_cpu_pct "$AOD_CPU_PCT"
       set_gpu_pct "$AOD_GPU_PCT"
-      log "Idle (wakefulness=$WAKEFULNESS) - dropped to AOD-tier clocks (${AOD_CPU_PCT}%/${AOD_GPU_PCT}%)"
+      log "Idle ($SOURCE) - dropped to AOD-tier clocks (${AOD_CPU_PCT}%/${AOD_GPU_PCT}%)"
     else
       set_cpu_pct "$BASE_CPU_PCT"
       set_gpu_pct "$BASE_GPU_PCT"
-      log "Awake - restored to baseline clocks (${BASE_CPU_PCT}%/${BASE_GPU_PCT}%)"
+      log "Awake ($SOURCE) - restored to baseline clocks (${BASE_CPU_PCT}%/${BASE_GPU_PCT}%)"
     fi
     LAST_STATE="$WANT_STATE"
     echo "$WANT_STATE" > "$STATE_FILE"

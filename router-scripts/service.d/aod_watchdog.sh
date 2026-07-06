@@ -54,6 +54,18 @@ while true; do
     CHANGED=1
   fi
 
+  # battery_charge_limit.sh only sets this once at boot - re-assert
+  # here too, same pattern as the other drift checks in this loop,
+  # since we don't yet have full confidence it holds reliably long-term
+  # (2026-07-06 testing: this node genuinely caps charging, but nothing
+  # was re-checking it between boots until now).
+  CHARGE_LIMIT_NODE=/sys/class/power_supply/battery/charge_limit
+  if [ -w "$CHARGE_LIMIT_NODE" ] && [ "$(cat "$CHARGE_LIMIT_NODE" 2>/dev/null)" != "80" ]; then
+    echo 80 > "$CHARGE_LIMIT_NODE"
+    log "charge_limit had drifted - reset to 80"
+    CHANGED=1
+  fi
+
   if dumpsys package com.android.systemui 2>/dev/null | grep -A5 disabledComponents | grep -q LowLightClockDreamService; then
     : # already disabled, nothing to do
   else

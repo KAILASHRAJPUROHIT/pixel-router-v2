@@ -272,6 +272,7 @@ public class RouterDreamService extends DreamService {
         mainHandler.postDelayed(burnInShiftTick, BURN_IN_SHIFT_INTERVAL_MS);
         applyAdaptiveBrightness();
         mainHandler.postDelayed(brightnessTick, BRIGHTNESS_CHECK_INTERVAL_MS);
+        writeDreamState("dreaming");
     }
 
     @Override
@@ -284,6 +285,19 @@ public class RouterDreamService extends DreamService {
         mainHandler.removeCallbacks(brightnessTick);
         if (fetchExecutor != null) {
             fetchExecutor.shutdownNow();
+        }
+        writeDreamState("awake");
+    }
+
+    // Lets aod_power_governor.sh tell dreaming from awake with a cheap
+    // file read instead of polling "dumpsys power" every 2s - root can
+    // always read app-private storage regardless of Android's sandbox,
+    // same trick used for the SMS send log.
+    private void writeDreamState(String state) {
+        try (java.io.FileOutputStream out = openFileOutput("dream_state", MODE_PRIVATE)) {
+            out.write(state.getBytes());
+        } catch (java.io.IOException e) {
+            // best-effort - governor falls back to its own dumpsys check
         }
     }
 

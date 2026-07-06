@@ -54,6 +54,23 @@
             android:layout_height="wrap_content"
             android:textSize="10sp"
             android:text="--" />
+
+        <TextView
+            android:id="@+id/panchang"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:layout_marginTop="4dp"
+            android:text="---" />
+
+        <TextView
+            android:id="@+id/muhurat_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:text="--" />
     </LinearLayout>
 
     <LinearLayout

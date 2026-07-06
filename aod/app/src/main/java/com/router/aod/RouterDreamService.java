@@ -122,6 +122,8 @@ public class RouterDreamService extends DreamService {
     private final View[] rowViews = new View[STAT_KEYS.length];
     private TextView clockView, dateView, panchangView;
     private TextView panchangHeaderView, panchangTithiView, panchangNakshatraView;
+    private TextView muhuratBadge;
+    private int lastMuhuratMinute = -1;
     private TextView weatherTempView, weatherConditionView;
     private int lastPanchangDay = -1;
     private final TextView[] labelViews = new TextView[STAT_KEYS.length];
@@ -296,6 +298,7 @@ public class RouterDreamService extends DreamService {
         panchangHeaderView = findViewById(R.id.panchang_header);
         panchangTithiView = findViewById(R.id.panchang_tithi);
         panchangNakshatraView = findViewById(R.id.panchang_nakshatra);
+        muhuratBadge = findViewById(R.id.muhurat_badge);
         weatherTempView = findViewById(R.id.weather_temp);
         weatherConditionView = findViewById(R.id.weather_condition);
         panchangCard = findViewById(R.id.panchang_card);
@@ -346,6 +349,7 @@ public class RouterDreamService extends DreamService {
         if (panchangHeaderView != null) panchangHeaderView.setTextColor(theme.accent);
         if (panchangTithiView != null) panchangTithiView.setTextColor(theme.textPrimary);
         if (panchangNakshatraView != null) panchangNakshatraView.setTextColor(theme.textMuted);
+        if (muhuratBadge != null) muhuratBadge.setTextColor(theme.accent);
         if (weatherTempView != null) weatherTempView.setTextColor(theme.textPrimary);
         if (weatherConditionView != null) weatherConditionView.setTextColor(theme.textMuted);
 
@@ -416,6 +420,18 @@ public class RouterDreamService extends DreamService {
             }
             if (panchangNakshatraView != null) {
                 panchangNakshatraView.setText(panchang.nakshatra);
+            }
+        }
+
+        int minuteOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
+        if (muhuratBadge != null && minuteOfDay != lastMuhuratMinute) {
+            lastMuhuratMinute = minuteOfDay;
+            String period = HinduPanchang.currentPeriod(now);
+            if (period != null) {
+                muhuratBadge.setText(period);
+                muhuratBadge.setVisibility(View.VISIBLE);
+            } else {
+                muhuratBadge.setVisibility(View.GONE);
             }
         }
     }

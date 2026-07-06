@@ -74,6 +74,24 @@ while true; do
     CHANGED=1
   fi
 
+  # This device is a dedicated always-on-charge router, not a daily
+  # driver phone - there's no legitimate use for the system's own
+  # ambient-display Doze here, and confirmed 2026-07-06 that it had
+  # been silently winning over our dream every few minutes all evening
+  # despite doze_enabled=0 (that setting alone doesn't stop
+  # DreamManagerService from selecting DozeService specifically during
+  # the Dozing/Asleep wakefulness states). Disabling the component
+  # outright means it can never be a dream candidate at all, regardless
+  # of any settings toggle - re-asserted here the same way as
+  # LowLightClockDreamService in case an OS update ever re-enables it.
+  if dumpsys package com.android.systemui 2>/dev/null | grep -A5 disabledComponents | grep -q "doze.DozeService"; then
+    : # already disabled, nothing to do
+  else
+    pm disable com.android.systemui/.doze.DozeService >/dev/null 2>&1
+    log "DozeService had re-enabled itself - disabled again"
+    CHANGED=1
+  fi
+
   WAKEFULNESS=$(dumpsys power 2>/dev/null | grep -m1 mWakefulness= | sed 's/.*mWakefulness=//')
   if [ "$WAKEFULNESS" = "Dozing" ] || [ "$WAKEFULNESS" = "Asleep" ]; then
     CURRENT_DREAM=$(dumpsys dreams 2>/dev/null | grep -m1 mCurrentDream= | grep -o "ComponentInfo{[^}]*}")

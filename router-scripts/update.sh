@@ -295,8 +295,22 @@ while true; do
   # regardless of that. address/date are found by searching for the
   # LAST ", date=" substring rather than the first, since a body could
   # in principle contain that exact text coincidentally.
+  # Grouped by sender (2026-07-06 request) - senders are ordered by
+  # their most recent message (the query is already date DESC, so a
+  # sender's first appearance in the stream is its newest message),
+  # with that sender's own messages listed newest-first underneath.
+  # ash/busybox has no associative arrays, so grouping is done via
+  # per-sender scratch files on disk (keyed by a sanitized filename)
+  # plus an order file recording first-seen order - built inside the
+  # `while` subshell (piped, so the shell vars themselves don't
+  # survive it, but the files it writes do).
   SMS_LIMIT=15
-  SMS_ROWS=$(content query --uri content://sms --projection address:body:date --where "type=1" --sort "date DESC" 2>/dev/null | awk -v limit="$SMS_LIMIT" '
+  SMS_TMPDIR="/data/local/tmp/dashboard/.sms_tmp"
+  rm -rf "$SMS_TMPDIR"
+  mkdir -p "$SMS_TMPDIR"
+  ORDER_FILE="$SMS_TMPDIR/order.txt"
+  : > "$ORDER_FILE"
+  content query --uri content://sms --projection address:body:date --where "type=1" --sort "date DESC" 2>/dev/null | awk -v limit="$SMS_LIMIT" '
     BEGIN { RS="Row: "; count=0 }
     NR>1 {
       if (count >= limit) exit
@@ -339,8 +353,20 @@ while true; do
       # uses double-precision, same fix pattern as those counters.
       sdate_sec=$(awk -v ms="$sdate" 'BEGIN{printf "%.0f", ms/1000}')
       stime=$(date -d "@$sdate_sec" "+%H:%M %d-%b" 2>/dev/null)
-      printf '<div style="background:#151515; border-radius:8px; padding:10px 14px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8em;"><span>%s</span><span>%s</span></div><div style="margin-top:4px; font-size:0.9em; word-break:break-word;">%s</div></div>\n' "$saddr_esc" "$stime" "$sbody_esc"
-    done)
+      SAFE_ADDR=$(printf '%s' "$saddr" | tr -c 'A-Za-z0-9' '_')
+      ADDR_FILE="$SMS_TMPDIR/$SAFE_ADDR.html"
+      [ -f "$ADDR_FILE" ] || printf '%s\n' "$saddr_esc" >> "$ORDER_FILE"
+      printf '<div style="background:#151515; border-radius:8px; padding:10px 14px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8em;"><span>%s</span></div><div style="margin-top:4px; font-size:0.9em; word-break:break-word;">%s</div></div>\n' "$stime" "$sbody_esc" >> "$ADDR_FILE"
+    done
+  SMS_ROWS=""
+  while IFS= read -r sender_esc; do
+    [ -z "$sender_esc" ] && continue
+    SAFE_ADDR=$(printf '%s' "$sender_esc" | tr -c 'A-Za-z0-9' '_')
+    ADDR_FILE="$SMS_TMPDIR/$SAFE_ADDR.html"
+    [ -f "$ADDR_FILE" ] || continue
+    SMS_ROWS="${SMS_ROWS}<h4 style=\"margin:14px 0 6px; color:#ccc; font-size:0.95em;\">${sender_esc}</h4>$(cat "$ADDR_FILE")"
+  done < "$ORDER_FILE"
+  rm -rf "$SMS_TMPDIR"
   [ -z "$SMS_ROWS" ] && SMS_ROWS='<div style="color:#888;">No messages</div>'
 
   # AOD status: which Daydream is currently active. idle_photo_switcher.sh

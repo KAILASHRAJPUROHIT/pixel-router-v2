@@ -92,6 +92,16 @@ detect_ap_if() {
 }
 
 detect_wan_if() {
+  # While failed-over to a borrowed iPhone hotspot, real WAN traffic
+  # flows over wlan0 (the STA link to it), not any rmnet* interface -
+  # cellular carries essentially nothing during that time, so Down/Up
+  # read as ~0 the whole time we're borrowed. Confirmed as a real bug
+  # 2026-07-06 (user reported speeds stuck/not moving while borrowed).
+  if [ "$(cat /data/adb/dashboard/internet_type 2>/dev/null)" = "borrowed" ]; then
+    echo wlan0
+    return
+  fi
+
   # Only trust a default-route interface if it's actually a cellular
   # (rmnet*) interface - the default route can transiently point at the
   # AP bridge itself, which would mislabel LAN traffic as WAN throughput.

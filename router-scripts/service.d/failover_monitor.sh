@@ -93,7 +93,12 @@ cellular_reachable() {
 send_trigger_sms() {
   NUMBER="$1"
   [ -z "$NUMBER" ] && return
-  am broadcast -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$SMS_TRIGGER_PHRASE" >/dev/null 2>&1
+  # Must target the receiver explicitly (-n) - confirmed 2026-07-06 that
+  # an implicit action-only broadcast never reaches it at all (Android
+  # 8+ blocks implicit broadcasts to manifest-declared receivers, even
+  # exported ones, specifically to stop apps waking on arbitrary custom
+  # actions; explicit-component broadcasts aren't subject to that).
+  am broadcast -n com.router.aod/.SendSmsReceiver -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$SMS_TRIGGER_PHRASE" >/dev/null 2>&1
   log "Sent failover trigger SMS to $NUMBER"
 }
 

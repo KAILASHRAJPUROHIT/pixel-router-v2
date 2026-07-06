@@ -21,7 +21,12 @@
 
         <receiver
             android:name=".SendSmsReceiver"
-            android:exported="true" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.router.aod.SEND_SMS" />
+                <action android:name="com.router.aod.SMS_SENT" />
+            </intent-filter>
+        </receiver>
 
         <service
             android:name=".RouterDreamService"

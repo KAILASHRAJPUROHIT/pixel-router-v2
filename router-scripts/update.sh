@@ -292,13 +292,30 @@ while true; do
     }
   }')
 
-  # Internet type: self (own cellular) or borrowed (failed over to a
-  # family member's iPhone hotspot) - written by failover_monitor.sh.
+  # Internet type: own cellular, or failed over to a family member's
+  # iPhone hotspot (written by failover_monitor.sh) - name the actual
+  # source rather than a generic "Self"/"Borrowed" label, so it's
+  # obvious at a glance whose hotspot is actually carrying traffic.
+  FAILOVER_CONFIG=/data/adb/dashboard/failover.properties
   INTERNET_TYPE=$(cat /data/adb/dashboard/internet_type 2>/dev/null)
   if [ "$INTERNET_TYPE" = "borrowed" ]; then
-    INTERNET_TYPE_LABEL="Borrowed"; INTERNET_TYPE_COLOR="#f1c40f"
+    BORROWED_SSID_NOW=$(cat /data/adb/dashboard/borrowed_ssid 2>/dev/null)
+    P1_NAME=$(grep "^phone1.name=" "$FAILOVER_CONFIG" 2>/dev/null | cut -d= -f2-)
+    P1_SSID=$(grep "^phone1.ssid=" "$FAILOVER_CONFIG" 2>/dev/null | cut -d= -f2-)
+    P2_NAME=$(grep "^phone2.name=" "$FAILOVER_CONFIG" 2>/dev/null | cut -d= -f2-)
+    P2_SSID=$(grep "^phone2.ssid=" "$FAILOVER_CONFIG" 2>/dev/null | cut -d= -f2-)
+    if [ -n "$BORROWED_SSID_NOW" ] && [ "$BORROWED_SSID_NOW" = "$P1_SSID" ] && [ -n "$P1_NAME" ]; then
+      INTERNET_TYPE_LABEL="${P1_NAME}'s iPhone"
+    elif [ -n "$BORROWED_SSID_NOW" ] && [ "$BORROWED_SSID_NOW" = "$P2_SSID" ] && [ -n "$P2_NAME" ]; then
+      INTERNET_TYPE_LABEL="${P2_NAME}'s iPhone"
+    elif [ -n "$BORROWED_SSID_NOW" ]; then
+      INTERNET_TYPE_LABEL="$BORROWED_SSID_NOW"
+    else
+      INTERNET_TYPE_LABEL="Borrowed"
+    fi
+    INTERNET_TYPE_COLOR="#f1c40f"
   else
-    INTERNET_TYPE_LABEL="Self"; INTERNET_TYPE_COLOR="#2ecc71"
+    INTERNET_TYPE_LABEL="Cellular"; INTERNET_TYPE_COLOR="#2ecc71"
   fi
 
   # Custom message: message.cgi (posted from the form below) writes an

@@ -10,11 +10,22 @@
 #   with_sta_supported, dumpsys wifi -> "STA + AP Concurrency Supported:
 #   true") - so our own hotspot keeps running the whole time; we're just
 #   adding a second, upstream Wi-Fi connection alongside it.
-# - iPhones give no external API to remotely flip Personal Hotspot on -
-#   the trigger is an SMS containing a fixed phrase, matched by a
-#   Shortcuts personal automation the phone's owner sets up themselves
-#   ("When I receive a message containing FAILOVER_TRIGGER_PHRASE, turn
-#   on Personal Hotspot").
+# - iPhones give no external API to remotely flip Personal Hotspot on,
+#   and they can't reliably self-detect "am I home" either (their WiFi
+#   is normally off at home specifically to avoid loading the router,
+#   so LAN presence isn't a usable signal, and doing distance math
+#   inside a Shortcuts "If" block proved fragile to set up). So this is
+#   a two-phase SMS handshake instead of a single trigger:
+#     1. WHEREAREYOU_PHRASE goes out - each iPhone has a trivial
+#        Shortcut that replies with "LOC:<lat>,<lon>" (no conditionals
+#        on the iPhone side at all).
+#     2. LocationReplyReceiver (in the AOD app) catches that reply and
+#        writes it to this app's private storage; this script computes
+#        the actual distance from home itself (haversine, see below)
+#        and only then sends SMS_TRIGGER_PHRASE - which each iPhone's
+#        second, equally trivial Shortcut turns straight into
+#        "Set Personal Hotspot On", unconditionally, since the router
+#        already did the location filtering.
 # - Once an iPhone's hotspot is up, we join it as a normal Wi-Fi client
 #   (`cmd wifi connect-network`). Android's own tethering stack
 #   automatically re-homes the hotspot's upstream to whatever the
@@ -38,6 +49,17 @@ RECOVERY_CHECK_INTERVAL=300 # 5 min between checks while borrowed
 HOTSPOT_SCAN_TIMEOUT=180    # give the iPhones up to 3 min to actually enable+appear
 SMS_TRIGGER_PHRASE="FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE"
 
+# Two-phase handshake: ask where each phone is BEFORE asking it to turn
+# on Personal Hotspot - the phones can't reliably self-detect "am I
+# home" on their own (their WiFi is normally off at home to reduce load
+# on the router, so LAN presence isn't a usable signal, and doing the
+# distance math inside a Shortcuts "If" block is fragile/fiddly to set
+# up) - so the router does the distance calculation itself instead.
+WHEREAREYOU_PHRASE="WHEREAREYOU_TRIGGER_PHRASE_DO_NOT_CHANGE"
+LOCATION_REPLY_TIMEOUT=60   # seconds to wait for a phone's GPS-reply text
+HOME_RADIUS_KM=0.2          # ~200m - matches the buffer discussed for GPS drift
+APP_FILES_DIR=/data/data/com.router.aod/files
+
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
 }
@@ -53,6 +75,8 @@ set_internet_type() {
 #   phone2.number=+91XXXXXXXXXX
 #   phone2.ssid=iPhone (Wife)
 #   phone2.password=xxxxxxxx
+#   home.lat=19.8036
+#   home.lon=72.7560
 load_config() {
   PHONE1_NUMBER=$(grep "^phone1.number=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_SSID=$(grep "^phone1.ssid=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
@@ -60,6 +84,8 @@ load_config() {
   PHONE2_NUMBER=$(grep "^phone2.number=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_SSID=$(grep "^phone2.ssid=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_PASSWORD=$(grep "^phone2.password=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  HOME_LAT=$(grep "^home.lat=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  HOME_LON=$(grep "^home.lon=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
 }
 
 detect_wan_if() {
@@ -90,16 +116,105 @@ cellular_reachable() {
   ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1
 }
 
-send_trigger_sms() {
+send_sms() {
   NUMBER="$1"
+  MESSAGE="$2"
   [ -z "$NUMBER" ] && return
   # Must target the receiver explicitly (-n) - confirmed 2026-07-06 that
   # an implicit action-only broadcast never reaches it at all (Android
   # 8+ blocks implicit broadcasts to manifest-declared receivers, even
   # exported ones, specifically to stop apps waking on arbitrary custom
   # actions; explicit-component broadcasts aren't subject to that).
-  am broadcast -n com.router.aod/.SendSmsReceiver -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$SMS_TRIGGER_PHRASE" >/dev/null 2>&1
-  log "Sent failover trigger SMS to $NUMBER"
+  am broadcast -n com.router.aod/.SendSmsReceiver -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$MESSAGE" >/dev/null 2>&1
+}
+
+# Haversine great-circle distance in km between two lat/lon pairs.
+# POSIX awk has sin/cos/atan2/sqrt built in - no extra tools needed.
+haversine_km() {
+  awk -v lat1="$1" -v lon1="$2" -v lat2="$3" -v lon2="$4" 'BEGIN {
+    pi = atan2(0, -1)
+    rad = pi / 180
+    R = 6371
+    dlat = (lat2 - lat1) * rad
+    dlon = (lon2 - lon1) * rad
+    a = sin(dlat/2)^2 + cos(lat1*rad) * cos(lat2*rad) * sin(dlon/2)^2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    printf "%.3f", R * c
+  }'
+}
+
+# Reads whatever LocationReplyReceiver last wrote for this number (it
+# only writes lat,lon,epoch_timestamp when a reply actually parses as
+# LOC:<lat>,<lon>). Prints "lat,lon" if a reply arrived within the last
+# LOCATION_REPLY_TIMEOUT seconds, otherwise prints nothing.
+read_location_reply() {
+  NUMBER="$1"
+  SANITIZED=$(echo "$NUMBER" | tr -d -c '0-9')
+  FILE="$APP_FILES_DIR/location_$SANITIZED.txt"
+  [ -f "$FILE" ] || return
+  LINE=$(cat "$FILE" 2>/dev/null)
+  REPLY_TS=$(echo "$LINE" | cut -d, -f3)
+  NOW=$(date +%s)
+  [ -z "$REPLY_TS" ] && return
+  AGE=$((NOW - REPLY_TS))
+  [ "$AGE" -lt 0 ] && return
+  if [ "$AGE" -le "$LOCATION_REPLY_TIMEOUT" ]; then
+    echo "$LINE" | cut -d, -f1,2
+  fi
+}
+
+# Queries both phones' locations, waits for replies, and returns
+# (via stdout, one per line) the number of each phone confirmed to be
+# within HOME_RADIUS_KM of home. This is the actual "is home" decision -
+# WiFi/LAN presence isn't reliable here since both phones normally keep
+# WiFi off at home specifically to avoid loading the router.
+find_phones_at_home() {
+  # Clear out any stale reply files from a previous round so an old
+  # location can't be mistaken for a fresh one.
+  rm -f "$APP_FILES_DIR"/location_*.txt 2>/dev/null
+
+  [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE1_NUMBER"; }
+  [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$WHEREAREYOU_PHRASE"; log "Sent WHEREAREYOU to $PHONE2_NUMBER"; }
+
+  ELAPSED=0
+  FOUND1=0
+  FOUND2=0
+  while [ "$ELAPSED" -lt "$LOCATION_REPLY_TIMEOUT" ]; do
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+
+    if [ "$FOUND1" = "0" ] && [ -n "$PHONE1_NUMBER" ]; then
+      REPLY=$(read_location_reply "$PHONE1_NUMBER")
+      if [ -n "$REPLY" ]; then
+        LAT=$(echo "$REPLY" | cut -d, -f1); LON=$(echo "$REPLY" | cut -d, -f2)
+        DIST=$(haversine_km "$HOME_LAT" "$HOME_LON" "$LAT" "$LON")
+        log "Phone1 replied: ${DIST}km from home"
+        if awk -v d="$DIST" -v r="$HOME_RADIUS_KM" 'BEGIN{exit !(d<=r)}'; then
+          echo "1"
+        fi
+        FOUND1=1
+      fi
+    fi
+    if [ "$FOUND2" = "0" ] && [ -n "$PHONE2_NUMBER" ]; then
+      REPLY=$(read_location_reply "$PHONE2_NUMBER")
+      if [ -n "$REPLY" ]; then
+        LAT=$(echo "$REPLY" | cut -d, -f1); LON=$(echo "$REPLY" | cut -d, -f2)
+        DIST=$(haversine_km "$HOME_LAT" "$HOME_LON" "$LAT" "$LON")
+        log "Phone2 replied: ${DIST}km from home"
+        if awk -v d="$DIST" -v r="$HOME_RADIUS_KM" 'BEGIN{exit !(d<=r)}'; then
+          echo "2"
+        fi
+        FOUND2=1
+      fi
+    fi
+
+    PHONE1_DONE=0; [ "$FOUND1" = "1" ] || [ -z "$PHONE1_NUMBER" ] && PHONE1_DONE=1
+    PHONE2_DONE=0; [ "$FOUND2" = "1" ] || [ -z "$PHONE2_NUMBER" ] && PHONE2_DONE=1
+    [ "$PHONE1_DONE" = "1" ] && [ "$PHONE2_DONE" = "1" ] && break
+  done
+
+  [ "$FOUND1" = "0" ] && [ -n "$PHONE1_NUMBER" ] && log "Phone1 never replied within ${LOCATION_REPLY_TIMEOUT}s - treating as not home"
+  [ "$FOUND2" = "0" ] && [ -n "$PHONE2_NUMBER" ] && log "Phone2 never replied within ${LOCATION_REPLY_TIMEOUT}s - treating as not home"
 }
 
 # There's no plain `cmd wifi disconnect` on this build - forget-network
@@ -116,23 +231,27 @@ forget_network_by_ssid() {
   fi
 }
 
-# Scans for either configured iPhone SSID, connects to whichever is
-# seen first. Retries within HOTSPOT_SCAN_TIMEOUT since the iPhone
-# needs a few seconds to actually enable its hotspot after the SMS.
+# Scans for either APPROVED iPhone SSID (i.e. one confirmed at home by
+# find_phones_at_home - $1/$2 are "1" if phone1/phone2 is approved),
+# connects to whichever is seen first. Retries within
+# HOTSPOT_SCAN_TIMEOUT since the iPhone needs a few seconds to actually
+# enable its hotspot after the SMS.
 try_connect_to_any_hotspot() {
+  APPROVE1="$1"
+  APPROVE2="$2"
   ELAPSED=0
   while [ "$ELAPSED" -lt "$HOTSPOT_SCAN_TIMEOUT" ]; do
     cmd wifi start-scan >/dev/null 2>&1
     sleep 8
     SCAN_RESULTS=$(cmd wifi list-scan-results 2>/dev/null)
 
-    if [ -n "$PHONE1_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE1_SSID"; then
+    if [ "$APPROVE1" = "1" ] && [ -n "$PHONE1_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE1_SSID"; then
       log "Found $PHONE1_SSID - connecting"
       cmd wifi connect-network "$PHONE1_SSID" wpa2 "$PHONE1_PASSWORD" >/dev/null 2>&1
       echo "$PHONE1_SSID"
       return 0
     fi
-    if [ -n "$PHONE2_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE2_SSID"; then
+    if [ "$APPROVE2" = "1" ] && [ -n "$PHONE2_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE2_SSID"; then
       log "Found $PHONE2_SSID - connecting"
       cmd wifi connect-network "$PHONE2_SSID" wpa2 "$PHONE2_PASSWORD" >/dev/null 2>&1
       echo "$PHONE2_SSID"
@@ -146,10 +265,21 @@ try_connect_to_any_hotspot() {
 
 trigger_failover() {
   log "Cellular down/slow for $CONSECUTIVE_BAD_NEEDED consecutive checks - triggering failover"
-  send_trigger_sms "$PHONE1_NUMBER"
-  send_trigger_sms "$PHONE2_NUMBER"
 
-  CONNECTED_SSID=$(try_connect_to_any_hotspot)
+  AT_HOME=$(find_phones_at_home)
+  APPROVE1=0; APPROVE2=0
+  echo "$AT_HOME" | grep -q "^1$" && APPROVE1=1
+  echo "$AT_HOME" | grep -q "^2$" && APPROVE2=1
+
+  if [ "$APPROVE1" = "0" ] && [ "$APPROVE2" = "0" ]; then
+    log "Neither phone confirmed at home - no hotspot request sent this cycle, will retry next poll"
+    return 1
+  fi
+
+  [ "$APPROVE1" = "1" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Phone1 confirmed home - sent hotspot-enable SMS"; }
+  [ "$APPROVE2" = "1" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Phone2 confirmed home - sent hotspot-enable SMS"; }
+
+  CONNECTED_SSID=$(try_connect_to_any_hotspot "$APPROVE1" "$APPROVE2")
   if [ -z "$CONNECTED_SSID" ]; then
     log "No iPhone hotspot appeared within ${HOTSPOT_SCAN_TIMEOUT}s - giving up this cycle, will retry next poll"
     return 1

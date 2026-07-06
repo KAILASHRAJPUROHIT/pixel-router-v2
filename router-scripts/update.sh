@@ -9,6 +9,23 @@ STATE_DIR=/data/adb/dashboard
 TOTAL_FILE="$STATE_DIR/total_data_bytes"
 PERDEV_DIR="$STATE_DIR/perdevice"
 BUSYBOX=/data/adb/magisk/busybox
+# Android's own tethering DHCP server doesn't persist per-client
+# hostnames anywhere queryable on this build (dumpsys tethering only
+# exposes IP<->MAC, no hostname; no dnsmasq lease file on disk) - so
+# there's no way to auto-resolve a device name the way a consumer router
+# UI appears to. This file is a manually-maintained MAC->name mapping
+# instead, one line per device: "aa:bb:cc:dd:ee:ff=Some Name".
+DEVICE_NAMES_FILE="$STATE_DIR/device_names.conf"
+
+lookup_device_name() {
+  # $1 = MAC (lowercase, colon-separated) -> prints the mapped name, or
+  # "Unknown device" if this MAC hasn't been added to the file yet.
+  MAC_LC=$(echo "$1" | tr 'A-Z' 'a-z')
+  if [ -f "$DEVICE_NAMES_FILE" ]; then
+    NAME=$(grep -i "^${MAC_LC}=" "$DEVICE_NAMES_FILE" | head -1 | cut -d= -f2-)
+  fi
+  [ -n "$NAME" ] && echo "$NAME" || echo "Unknown device"
+}
 
 mkdir -p "$WWW" "$STATE_DIR" "$PERDEV_DIR"
 [ -f "$TOTAL_FILE" ] || echo 0 > "$TOTAL_FILE"
@@ -225,10 +242,11 @@ while true; do
     ROWS=$(echo "$DEVICE_ROWS" | awk -F'|' '{print $1"|"$2}' | while IFS='|' read -r dip dmac; do
       ensure_device_accounting "$dip"
       dtotal=$(update_device_total "$dip" "$dmac")
-      printf "<tr><td>%s</td><td>%s</td><td>%s GB</td></tr>\n" "$dip" "$dmac" "$dtotal"
+      dname=$(lookup_device_name "$dmac")
+      printf "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td></tr>\n" "$dname" "$dip" "$dmac" "$dtotal"
     done)
   else
-    ROWS="<tr><td colspan=3>No devices connected</td></tr>"
+    ROWS="<tr><td colspan=4>No devices connected</td></tr>"
   fi
 
   # AOD status: which Daydream is currently active. idle_photo_switcher.sh
@@ -331,7 +349,7 @@ while true; do
     style="margin-top:8px; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD (5 min)</button>
 </form>
 <table>
-<tr><th>Device IP</th><th>MAC</th><th>Total Used</th></tr>
+<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th></tr>
 ${ROWS}
 </table>
 </body>

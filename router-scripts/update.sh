@@ -278,6 +278,20 @@ while true; do
     *) AOD_LABEL="Off"; AOD_COLOR="#e74c3c" ;;
   esac
 
+  # AOD layout picker: names must stay in the exact order of the
+  # AodLayout.java enum (its ordinal is what layout_index actually
+  # stores) - there's no way to query the enum's labels from a shell
+  # script, so this list is manually kept in sync with that file.
+  AOD_LAYOUT_NAMES="Corner stack|Centered radial|Split halves + grid|Sidebar rail|Ticker marquee|Widget cascade|Giant stack|Mega grid|Bento modern|Glyph minimal"
+  CURRENT_LAYOUT_IDX=$(sed -n 's/.*layout_index" value="\([0-9]*\)".*/\1/p' /data/data/com.router.aod/shared_prefs/aod_prefs.xml 2>/dev/null)
+  [ -z "$CURRENT_LAYOUT_IDX" ] && CURRENT_LAYOUT_IDX=0
+  AOD_LAYOUT_OPTIONS=$(echo "$AOD_LAYOUT_NAMES" | awk -v cur="$CURRENT_LAYOUT_IDX" -F'|' '{
+    for (i=1; i<=NF; i++) {
+      sel = (i-1 == cur) ? " selected" : ""
+      printf "<option value=\"%d\"%s>%s</option>", i-1, sel, $i
+    }
+  }')
+
   # Internet type: self (own cellular) or borrowed (failed over to a
   # family member's iPhone hotspot) - written by failover_monitor.sh.
   INTERNET_TYPE=$(cat /data/adb/dashboard/internet_type 2>/dev/null)
@@ -353,8 +367,8 @@ while true; do
 <body>
 <div class="clock">${NOW_TIME}</div>
 <div class="date">${NOW_DATE}</div>
-<div class="stat"><div class="label">Down</div><div class="value">${DOWN_MBPS}</div></div>
-<div class="stat"><div class="label">Up</div><div class="value">${UP_MBPS}</div></div>
+<div class="stat"><div class="label">Down</div><div class="value" id="speed-down">${DOWN_MBPS}</div></div>
+<div class="stat"><div class="label">Up</div><div class="value" id="speed-up">${UP_MBPS}</div></div>
 <div class="stat"><div class="label">Devices</div><div class="value">${CLIENT_COUNT}</div></div>
 <div class="stat"><div class="label">Total Used</div><div class="value">${TOTAL_GB} GB</div></div>
 <div class="stat"><div class="label">Battery</div><div class="value">${BATT_LEVEL}%</div></div>
@@ -375,10 +389,33 @@ while true; do
   <button type="submit"
     style="margin-top:8px; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD (5 min)</button>
 </form>
+<form method="POST" action="/cgi-bin/set_aod_layout.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px;">
+  <select name="layout"
+    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
+    ${AOD_LAYOUT_OPTIONS}
+  </select>
+  <button type="submit"
+    style="background:#3498db; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch AOD</button>
+</form>
 <table>
 <tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th></tr>
 ${ROWS}
 </table>
+<script>
+// Polls speed.json (written every 2s by speed_monitor.sh, a dedicated
+// fast-sampling loop separate from this page's own ~10-15s regeneration
+// cycle) so Down/Up feels live without a full page reload interrupting
+// scroll position or in-progress form input every 10s.
+setInterval(function() {
+  fetch('/speed.json', {cache: 'no-store'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('speed-down').textContent = d.down;
+      document.getElementById('speed-up').textContent = d.up;
+    })
+    .catch(function() {});
+}, 1500);
+</script>
 </body>
 </html>
 EOF

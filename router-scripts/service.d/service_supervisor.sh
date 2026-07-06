@@ -28,7 +28,7 @@ HEARTBEAT_EVERY=30
 # limit.sh, conntrack.sh, dashboard_boot.sh, hotspot_on_boot.sh,
 # permanent_underclock.sh, vpn_tether_routing.sh) are meant to run once
 # and exit, so they're deliberately excluded here.
-SCRIPTS="aod_power_governor.sh aod_watchdog.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh thermal_monitor.sh"
+SCRIPTS="aod_power_governor.sh aod_watchdog.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh speed_monitor.sh thermal_monitor.sh"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"

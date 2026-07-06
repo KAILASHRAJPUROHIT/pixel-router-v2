@@ -254,6 +254,14 @@ public class RouterDreamService extends DreamService {
         bindViews();
         applyTheme(currentTheme);
 
+        // Gentle fade-in on wake into the dream, matching the softer
+        // wake/sleep transition One UI 8.5 added instead of AOD content
+        // just snapping into place instantly.
+        if (bgRoot != null) {
+            bgRoot.setAlpha(0f);
+            bgRoot.animate().alpha(1f).setDuration(600).start();
+        }
+
         messageOverlay = new TextView(this);
         messageOverlay.setBackgroundColor(Color.BLACK);
         messageOverlay.setTextColor(Color.WHITE);

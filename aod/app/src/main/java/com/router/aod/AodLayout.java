@@ -20,7 +20,11 @@ public enum AodLayout {
     MEGA_GRID("Mega grid", R.layout.aod_layout_mega_grid),
     // Modern rounded-card bento layout with dedicated Hindu calendar
     // (Panchang) and weather cards, plus the ten stats as varied-size cards.
-    BENTO_MODERN("Bento modern", R.layout.aod_layout_bento_modern);
+    BENTO_MODERN("Bento modern", R.layout.aod_layout_bento_modern),
+    // Nothing Phone Glyph Matrix-inspired: deliberately sparse, only 4 of
+    // the 10 stats shown, one big color-coded health "ring" as the hero
+    // glance element - the opposite instinct from the "loud" layouts.
+    GLYPH_MINIMAL("Glyph minimal", R.layout.aod_layout_glyph);
 
     public final String label;
     public final int layoutRes;

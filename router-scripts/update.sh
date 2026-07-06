@@ -403,8 +403,13 @@ while true; do
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
   <input type="text" name="message" maxlength="200" placeholder="Send a message home..."
     style="width:100%; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
-  <button type="submit"
-    style="margin-top:8px; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD (5 min)</button>
+  <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+    <input type="number" name="duration_min" value="5" min="1" max="1440"
+      style="width:80px; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 10px; font-size:1em;">
+    <span style="color:#888; font-size:0.85em;">minutes</span>
+    <button type="submit"
+      style="margin-left:auto; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD</button>
+  </div>
 </form>
 <form method="POST" action="/cgi-bin/set_aod_layout.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px;">
   <select name="layout"

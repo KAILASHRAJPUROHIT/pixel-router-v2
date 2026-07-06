@@ -262,6 +262,16 @@ while true; do
   # AOD's label/value regex (which stops at the first "<").
   CUSTOM_MESSAGE_ESC=$(printf '%s' "$CUSTOM_MESSAGE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
 
+  # Live CPU/GPU clock, for visibility into aod_power_governor.sh's
+  # idle-tier throttling actually taking effect - scaling_cur_freq is the
+  # frequency actually in use right now, not the scaling_max_freq ceiling
+  # the governor sets.
+  CPU_KHZ=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null)
+  CPU_MHZ=$(awk -v k="$CPU_KHZ" 'BEGIN{printf "%.0f", k/1000}')
+  GPU_KHZ=$(cat /sys/devices/platform/1c500000.mali/cur_freq 2>/dev/null)
+  [ -z "$GPU_KHZ" ] && GPU_KHZ=0
+  GPU_MHZ=$(awk -v k="$GPU_KHZ" 'BEGIN{printf "%.0f", k/1000}')
+
   NOW_TIME=$(date '+%H:%M')
   NOW_DATE=$(date '+%a, %d %b')
 
@@ -301,6 +311,8 @@ while true; do
 <div class="stat"><div class="label">Signal</div><div class="value colored" style="--c:${SIGNAL_COLOR}">${SIGNAL_LABEL}</div></div>
 <div class="stat"><div class="label">Health</div><div class="value colored" style="--c:${HEALTH_COLOR}">${HEALTH_LABEL}</div></div>
 <div class="stat"><div class="label">AOD Status</div><div class="value colored" style="--c:${AOD_COLOR}">${AOD_LABEL}</div></div>
+<div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
+<div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
 <div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
   <input type="text" name="message" maxlength="200" placeholder="Send a message home..."

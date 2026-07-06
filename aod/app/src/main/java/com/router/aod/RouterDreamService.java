@@ -128,6 +128,10 @@ public class RouterDreamService extends DreamService {
     private final TextView[] valueViews = new TextView[STAT_KEYS.length];
     private TextView headline1Label, headline1Value, headline2Label, headline2Value;
     private TextView healthBadge;
+    // CPU/GPU clock display - only present in aod_layout_bento_modern.xml
+    // so far (the layout in active use as of 2026-07-05); null-safe like
+    // healthBadge for every other layout, which just won't show it yet.
+    private TextView perfBadge;
 
     // Custom message: dashboard-typed text that takes over the entire
     // screen for 5 minutes (server-enforced expiry, see update.sh/
@@ -305,6 +309,7 @@ public class RouterDreamService extends DreamService {
         headline2Label = findViewById(R.id.headline2_label);
         headline2Value = findViewById(R.id.headline2_value);
         healthBadge = findViewById(R.id.health_badge);
+        perfBadge = findViewById(R.id.perf_badge);
 
         for (int i = 0; i < ROW_IDS.length; i++) {
             View row = findViewById(ROW_IDS[i]);
@@ -347,6 +352,7 @@ public class RouterDreamService extends DreamService {
         tintPanelIfPresent(panchangCard, theme.panel);
         tintPanelIfPresent(weatherCard, theme.panel);
         if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
+        if (perfBadge != null) perfBadge.setTextColor(theme.textMuted);
 
         for (int i = 0; i < labelViews.length; i++) {
             labelViews[i].setTextColor(theme.textMuted);
@@ -498,6 +504,13 @@ public class RouterDreamService extends DreamService {
                         healthBadge.setText(health);
                         Integer color = statColors.get("Health");
                         healthBadge.setTextColor(color != null ? color : currentTheme.textMuted);
+                    }
+                }
+                if (perfBadge != null) {
+                    String cpu = stats.get("CPU MHz");
+                    String gpu = stats.get("GPU MHz");
+                    if (cpu != null && gpu != null) {
+                        perfBadge.setText("CPU " + cpu + " · GPU " + gpu);
                     }
                 }
                 if (messageOverlay != null) {

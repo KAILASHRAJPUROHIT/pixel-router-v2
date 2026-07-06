@@ -31,12 +31,26 @@ CFG="/data/misc_ce/0/apexdata/com.android.wifi/WifiConfigStoreSoftAp.xml"
 SSID=$(cat "$CFG" 2>/dev/null | grep "WifiSsid" | sed -E 's/.*>&quot;(.*)&quot;<.*/\1/')
 PASS=$(cat "$CFG" 2>/dev/null | grep "Passphrase" | sed -E 's/.*>([^<]*)<.*/\1/')
 
-# Fallback only if the config file is somehow missing/unreadable.
-# NOTE (repo copy): real fallback SSID/password redacted here - the
-# on-device version has your actual values; this path is a rarely-hit
-# last resort since SSID/PASS normally come from the real config above.
-[ -z "$SSID" ] && SSID="CHANGEME_SSID"
+# Fallback if the config file is missing/unreadable - confirmed
+# 2026-07-06 that WifiConfigStoreSoftAp.xml no longer exists at this
+# path on this Android build at all (the OS update appears to have
+# restructured Wi-Fi config storage - the merged WifiConfigStore.xml
+# that replaced it doesn't expose SoftAp SSID/passphrase in a simple
+# greppable plaintext form). Since dynamic reading is now unreliable
+# across OS updates, the fallback holds the real persistent values
+# directly rather than a stale/wrong placeholder - this had been
+# "Pixel_5053" (the stock default) here, silently reverting the actual
+# configured hotspot name (PILLYBOO) whenever the dynamic read failed.
+# NOTE (repo copy): real password redacted here - the on-device version
+# has your actual password.
+[ -z "$SSID" ] && SSID="PILLYBOO"
 [ -z "$PASS" ] && PASS="CHANGEME_PASSWORD"
 
+# Confirmed 2026-07-06: start-softap can silently no-op (keeps whatever
+# config was already active) if a softap session is already running -
+# stop-softap first is a harmless no-op if nothing's running, but makes
+# sure a fresh start actually applies $SSID/$PASS either way.
+cmd wifi stop-softap >/dev/null 2>&1
+sleep 2
 cmd wifi start-softap "$SSID" wpa2 "$PASS"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - hotspot started with SSID=$SSID" >> /data/adb/dashboard/hotspot_boot.log

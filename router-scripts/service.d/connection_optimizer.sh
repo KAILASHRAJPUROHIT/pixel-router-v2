@@ -55,6 +55,11 @@ check_hotspot() {
     # has your actual SSID; this path is a rarely-hit last resort.
     [ -z "$SSID" ] && SSID="CHANGEME_SSID"
     if [ -n "$PASS" ]; then
+      # stop-softap first - confirmed 2026-07-06 that start-softap can
+      # silently no-op on an already-running session instead of
+      # applying the new SSID/password.
+      cmd wifi stop-softap >/dev/null 2>&1
+      sleep 2
       cmd wifi start-softap "$SSID" wpa2 "$PASS" >/dev/null 2>&1
     else
       log "Could not read real SSID/password from WifiConfigStoreSoftAp.xml - not restarting with a guessed fallback"

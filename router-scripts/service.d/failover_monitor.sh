@@ -140,6 +140,34 @@ cellular_reachable() {
   ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1
 }
 
+# True if WiFi is enabled AND actively connected to EITHER known phone's
+# hotspot SSID - not just the specific one last recorded in
+# borrowed_ssid. Both iPhone hotspot networks are saved simultaneously on
+# this device (confirmed via `cmd wifi list-networks` 2026-07-06), so
+# Android's own network selection can silently roam from one to the
+# other on its own, with no call through this script at all - that left
+# borrowed_ssid stale (recorded "BEENAS IPHONE 16 PRO MAX" while actually
+# connected to "Kailash's 16 Pro Max"). Echoes the live SSID back so the
+# caller can self-heal that file instead of just detecting the mismatch.
+#
+# The main loop's "borrowed" branch used to only ever check whether OUR
+# OWN cellular had recovered, never whether the borrowed WiFi connection
+# itself was still up at all - if WiFi got turned off entirely (crash,
+# OS, a manual toggle), the loop kept silently logging "staying on
+# borrowed hotspot" every 5 minutes with no actual connection to
+# anywhere, and the dashboard kept showing a false "Borrowed" label.
+# Confirmed as a real incident 2026-07-06.
+borrowed_connection_alive() {
+  [ "$(settings get global wifi_on 2>/dev/null)" = "1" ] || return 1
+  CONNECTED_NOW=$(cmd wifi status 2>/dev/null | grep -o 'Wifi is connected to "[^"]*"' | sed 's/Wifi is connected to "//; s/"$//')
+  [ -z "$CONNECTED_NOW" ] && return 1
+  if [ "$CONNECTED_NOW" = "$PHONE1_SSID" ] || [ "$CONNECTED_NOW" = "$PHONE2_SSID" ]; then
+    echo "$CONNECTED_NOW"
+    return 0
+  fi
+  return 1
+}
+
 send_sms() {
   NUMBER="$1"
   MESSAGE="$2"
@@ -370,6 +398,21 @@ while true; do
   CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "self")
 
   if [ "$CURRENT_STATE" = "borrowed" ]; then
+    ACTUAL_CONNECTED_SSID=$(borrowed_connection_alive)
+    if [ -z "$ACTUAL_CONNECTED_SSID" ]; then
+      log "Borrowed hotspot connection lost (WiFi off, or not connected to either known phone's hotspot) - resetting to self so the dashboard doesn't keep showing a false Borrowed status; will re-attempt failover on the next bad reading if cellular is still down"
+      set_internet_type "self"
+      rm -f /data/adb/dashboard/borrowed_ssid
+      BAD_COUNT=$((CONSECUTIVE_BAD_NEEDED - 1))
+      sleep "$CHECK_INTERVAL"
+      continue
+    fi
+    RECORDED_SSID=$(cat /data/adb/dashboard/borrowed_ssid 2>/dev/null)
+    if [ "$ACTUAL_CONNECTED_SSID" != "$RECORDED_SSID" ]; then
+      log "borrowed_ssid was stale (recorded \"$RECORDED_SSID\", actually connected to \"$ACTUAL_CONNECTED_SSID\") - Android's own network selection must have silently switched between the two saved iPhone hotspots; corrected"
+      echo "$ACTUAL_CONNECTED_SSID" > /data/adb/dashboard/borrowed_ssid
+    fi
+
     sleep "$RECOVERY_CHECK_INTERVAL"
     if cellular_reachable; then
       MBPS=$(measure_cellular_mbps)

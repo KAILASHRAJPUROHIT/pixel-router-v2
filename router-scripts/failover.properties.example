@@ -5,6 +5,14 @@
 # appears in Wi-Fi scans (Settings > Personal Hotspot > Wi-Fi Password
 # screen on the iPhone shows both the name and password).
 #
+# Watch for iOS auto-correcting a straight apostrophe (') into a curly
+# one (') in the device name ("Kailash's" -> "Kailash's") - typing the
+# straight version here looks identical at a glance but never
+# byte-matches the real SSID, silently breaking scan-result matching and
+# any exact-string comparison against it. Confirmed as a real bug
+# 2026-07-06. If your hotspot name has an apostrophe, copy it directly
+# from `cmd wifi status` or a scan result rather than typing it by hand.
+#
 # Each iPhone also needs its own Shortcuts personal automation set up
 # (Shortcuts app > Automation > Create Personal Automation > Message >
 # "Message Contains" = FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE (must match

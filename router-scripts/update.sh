@@ -247,6 +247,8 @@ while true; do
     HEALTH_LABEL="Good"; HEALTH_COLOR="#2ecc71"
   fi
 
+  BLOCKLIST_FILE="$STATE_DIR/mac_blocklist.conf"
+
   ROWS=""
   if [ "$CLIENT_COUNT" -gt 0 ]; then
     ROWS=$(echo "$DEVICE_ROWS" | awk -F'|' '{print $1"|"$2}' | while IFS='|' read -r dip dmac; do
@@ -261,10 +263,22 @@ while true; do
       printf '<input type="hidden" name="mac" value="%s">' "$dmac"
       printf '<input type="text" name="name" value="%s" maxlength="60" style="width:120px; background:#151515; color:#eee; border:1px solid #333; border-radius:6px; padding:4px 6px; font-size:0.85em;">' "$dname_esc"
       printf '<button type="submit" style="background:#333; color:#eee; border:none; border-radius:6px; padding:4px 10px; font-size:0.8em;">Save</button>'
-      printf '</form></td></tr>\n'
+      printf '</form></td><td>'
+      if [ -f "$BLOCKLIST_FILE" ] && grep -qi "^${dmac}$" "$BLOCKLIST_FILE"; then
+        printf '<form method="POST" action="/cgi-bin/toggle_block.cgi">'
+        printf '<input type="hidden" name="mac" value="%s"><input type="hidden" name="action" value="unblock">' "$dmac"
+        printf '<button type="submit" style="background:#2ecc71; color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:0.8em; font-weight:600;">Allow</button>'
+        printf '</form>'
+      else
+        printf '<form method="POST" action="/cgi-bin/toggle_block.cgi">'
+        printf '<input type="hidden" name="mac" value="%s"><input type="hidden" name="action" value="block">' "$dmac"
+        printf '<button type="submit" style="background:#e74c3c; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:0.8em; font-weight:600;">Deny</button>'
+        printf '</form>'
+      fi
+      printf '</td></tr>\n'
     done)
   else
-    ROWS="<tr><td colspan=5>No devices connected</td></tr>"
+    ROWS="<tr><td colspan=6>No devices connected</td></tr>"
   fi
 
   # AOD status: which Daydream is currently active. idle_photo_switcher.sh
@@ -376,7 +390,7 @@ while true; do
   .stat .label { color:#888; font-size:0.75em; text-transform:uppercase; letter-spacing:0.05em; }
   .stat .value { font-size:1.7em; font-weight:600; margin-top:2px; }
   .stat .value.colored { color: var(--c); }
-  table { border-collapse:collapse; margin-top:18px; width:100%; max-width:680px; }
+  table { border-collapse:collapse; margin-top:18px; width:100%; max-width:780px; }
   td, th { text-align:left; padding:6px 10px; border-bottom:1px solid #222; font-size:0.85em; }
   th { color:#888; font-weight:normal; }
 </style>
@@ -420,7 +434,7 @@ while true; do
     style="background:#3498db; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch AOD</button>
 </form>
 <table>
-<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th></tr>
+<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
 ${ROWS}
 </table>
 <script>

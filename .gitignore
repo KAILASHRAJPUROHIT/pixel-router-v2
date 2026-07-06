@@ -1,6 +1,7 @@
 # --- secrets (never commit) ---
 **/dashboard.properties
 **/local_secrets.py
+**/*.pem
 
 # --- Android (aod/) ---
 aod/local.properties

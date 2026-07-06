@@ -4,23 +4,22 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center_horizontal"
-    android:paddingTop="32dp">
+    android:padding="20dp">
 
     <LinearLayout
         android:id="@+id/panel_1"
-        android:layout_width="280dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/aod_panel_bg"
         android:orientation="vertical"
         android:gravity="center"
-        android:padding="16dp">
+        android:padding="20dp">
 
         <TextView
             android:id="@+id/clock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="34sp"
+            android:textSize="56sp"
             android:fontFamily="sans-serif-light"
             android:text="--:--" />
 
@@ -28,23 +27,23 @@
             android:id="@+id/date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
+            android:textSize="16sp"
             android:text="---" />
 
         <TextView
             android:id="@+id/health_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="11sp"
+            android:textSize="14sp"
             android:textAllCaps="true"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:text="--" />
 
         <TextView
             android:id="@+id/perf_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="10sp"
+            android:textSize="12sp"
             android:alpha="0.6"
             android:text="--" />
 
@@ -52,14 +51,14 @@
             android:id="@+id/net_type_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="10sp"
+            android:textSize="12sp"
             android:text="--" />
 
         <TextView
             android:id="@+id/panchang"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="11sp"
+            android:textSize="14sp"
             android:layout_marginTop="4dp"
             android:text="---" />
 
@@ -67,58 +66,59 @@
             android:id="@+id/muhurat_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="11sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:visibility="gone"
             android:text="--" />
     </LinearLayout>
 
+    <!-- panel_2/panel_3 now stretch full-width and share the remaining
+         vertical space (weight=1 each) instead of sitting at fixed
+         240dp/200dp widths with wrap_content height, which left most of
+         the screen unused. panel_3 moved from 1 column x 6 rows to 2x3
+         now that it has the width to spare. -->
     <LinearLayout
         android:id="@+id/panel_2"
-        android:layout_width="240dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"
         android:background="@drawable/aod_panel_bg"
-        android:orientation="horizontal"
-        android:padding="6dp">
+        android:orientation="vertical"
+        android:padding="10dp">
 
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:rowCount="2">
-
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row0" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row1" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row2" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row3" />
-
-        </GridLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/panel_3"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"
         android:background="@drawable/aod_panel_bg"
-        android:orientation="horizontal"
-        android:padding="6dp">
+        android:orientation="vertical"
+        android:padding="10dp">
 
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="1"
-            android:rowCount="6">
-
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row4" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row5" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row6" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row7" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row8" />
-            <include layout="@layout/aod_row_ticker" android:id="@+id/row9" />
-
-        </GridLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <include layout="@layout/aod_row_ticker" android:id="@+id/row9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

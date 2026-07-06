@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="0dp"
+    android:layout_weight="1"
     android:orientation="vertical"
-    android:gravity="center_horizontal"
-    android:layout_marginBottom="8dp">
+    android:gravity="center">
 
     <TextView
         android:id="@+id/stat_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="7sp"
+        android:textSize="9sp"
         android:textAllCaps="true"
         android:text="Label" />
 
@@ -18,7 +18,7 @@
         android:id="@+id/stat_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="9sp"
+        android:textSize="13sp"
         android:textStyle="bold"
         android:text="--" />
 

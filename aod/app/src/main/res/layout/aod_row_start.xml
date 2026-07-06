@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirror of aod_row_end.xml for the bottom-left corner - same sizing,
+     just no need for the end-aligned parent gravity aod_row_end relies on. -->
+<!-- See aod_row_end.xml - same label-above-value fix, mirrored to
+     start-aligned for the bottom-left corner. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="start"
+    android:layout_marginBottom="10dp">
+
+    <TextView
+        android:id="@+id/stat_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textAllCaps="true"
+        android:letterSpacing="0.05"
+        android:text="Label" />
+
+    <TextView
+        android:id="@+id/stat_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:text="--" />
+
+</LinearLayout>

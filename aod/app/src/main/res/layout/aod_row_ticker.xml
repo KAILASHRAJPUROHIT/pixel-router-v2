@@ -1,26 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- layout_width/height/weight are overridden per usage on the <include>
+     tag in each parent layout (aod_layout_ticker.xml uses horizontal
+     weighting, aod_layout_cascade.xml vertical) - same pattern as
+     aod_row_giant.xml/aod_tile_giant.xml.
+
+     Label-above-value (not side-by-side) - side-by-side needed more
+     width than a 1/5-screen-wide ticker column has at 18sp, causing
+     values like "0.03" to wrap character-by-character and adjacent
+     columns' text to visibly overlap. Confirmed as a real bug via
+     screenshot 2026-07-06. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_margin="6dp"
-    android:orientation="horizontal"
-    android:gravity="center_vertical">
+    android:layout_margin="4dp"
+    android:orientation="vertical"
+    android:gravity="center">
 
+    <!-- match_parent (not wrap_content) so autoSizeTextType has an
+         actual width to shrink into - the ticker layout's 5 narrow
+         columns clipped "Normal" to "Norma" with a fixed 18sp and no
+         way to shrink. Confirmed as a real bug via screenshot
+         2026-07-06. Also allowed to wrap to 2 lines, since each row's
+         weighted cell has far more height available than one line of
+         text needs. -->
     <TextView
         android:id="@+id/stat_label"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="8sp"
+        android:gravity="center_horizontal"
+        android:textSize="11sp"
         android:textAllCaps="true"
+        android:maxLines="2"
         android:text="Label" />
 
     <TextView
         android:id="@+id/stat_value"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:textSize="10sp"
+        android:layout_marginTop="2dp"
+        android:gravity="center_horizontal"
         android:textStyle="bold"
+        android:maxLines="1"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="20sp"
+        android:autoSizeStepGranularity="1sp"
         android:text="--" />
 
 </LinearLayout>

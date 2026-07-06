@@ -6,10 +6,10 @@
 
     <FrameLayout
         android:id="@+id/panel_1"
-        android:layout_width="140dp"
-        android:layout_height="140dp"
-        android:layout_marginStart="135dp"
-        android:layout_marginTop="350dp"
+        android:layout_width="170dp"
+        android:layout_height="170dp"
+        android:layout_marginStart="120dp"
+        android:layout_marginTop="335dp"
         android:background="@drawable/aod_circle_bg">
 
         <TextView
@@ -17,7 +17,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:textSize="26sp"
+            android:textSize="34sp"
             android:fontFamily="sans-serif-light"
             android:text="--:--" />
     </FrameLayout>

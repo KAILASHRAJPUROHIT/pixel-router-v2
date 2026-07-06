@@ -243,10 +243,18 @@ while true; do
       ensure_device_accounting "$dip"
       dtotal=$(update_device_total "$dip" "$dmac")
       dname=$(lookup_device_name "$dmac")
-      printf "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td></tr>\n" "$dname" "$dip" "$dmac" "$dtotal"
+      # HTML-escape before embedding in the input's value attribute -
+      # dname can come from user-submitted rename_device.cgi text.
+      dname_esc=$(printf '%s' "$dname" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
+      printf '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td><td>' "$dname" "$dip" "$dmac" "$dtotal"
+      printf '<form method="POST" action="/cgi-bin/rename_device.cgi" style="display:flex; gap:4px;">'
+      printf '<input type="hidden" name="mac" value="%s">' "$dmac"
+      printf '<input type="text" name="name" value="%s" maxlength="60" style="width:120px; background:#151515; color:#eee; border:1px solid #333; border-radius:6px; padding:4px 6px; font-size:0.85em;">' "$dname_esc"
+      printf '<button type="submit" style="background:#333; color:#eee; border:none; border-radius:6px; padding:4px 10px; font-size:0.8em;">Save</button>'
+      printf '</form></td></tr>\n'
     done)
   else
-    ROWS="<tr><td colspan=4>No devices connected</td></tr>"
+    ROWS="<tr><td colspan=5>No devices connected</td></tr>"
   fi
 
   # AOD status: which Daydream is currently active. idle_photo_switcher.sh
@@ -318,7 +326,7 @@ while true; do
   .stat .label { color:#888; font-size:0.75em; text-transform:uppercase; letter-spacing:0.05em; }
   .stat .value { font-size:1.7em; font-weight:600; margin-top:2px; }
   .stat .value.colored { color: var(--c); }
-  table { border-collapse:collapse; margin-top:18px; width:100%; max-width:420px; }
+  table { border-collapse:collapse; margin-top:18px; width:100%; max-width:680px; }
   td, th { text-align:left; padding:6px 10px; border-bottom:1px solid #222; font-size:0.85em; }
   th { color:#888; font-weight:normal; }
 </style>
@@ -349,7 +357,7 @@ while true; do
     style="margin-top:8px; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD (5 min)</button>
 </form>
 <table>
-<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th></tr>
+<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th></tr>
 ${ROWS}
 </table>
 </body>

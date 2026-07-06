@@ -63,6 +63,17 @@ fi
 TC="tc"
 command -v tc >/dev/null 2>&1 || TC="/data/adb/magisk/busybox tc"
 
+# True if our "prio" root qdisc is actually present on $1 right now -
+# cellular interface churn (modem reconnect, IP renewal) can silently
+# wipe tc state without the WAN interface name or priority IP ever
+# changing, which would otherwise leave this script's own bookkeeping
+# thinking everything's still fine while traffic gets no priority at
+# all. Confirmed 2026-07-06 that a bare re-check of WAN_IF/PRIORITY_IP
+# alone isn't sufficient - actual qdisc presence has to be re-verified.
+qos_state_present() {
+  $TC qdisc show dev "$1" 2>/dev/null | grep -q "^qdisc prio 1: root"
+}
+
 LAST_WAN_IF=""
 LAST_PRIORITY_IP=""
 
@@ -80,6 +91,9 @@ while true; do
     apply_qos "$WAN_IF" "$PRIORITY_IP"
     LAST_WAN_IF="$WAN_IF"
     LAST_PRIORITY_IP="$PRIORITY_IP"
+  elif ! qos_state_present "$WAN_IF"; then
+    log "qdisc state on $WAN_IF had drifted (interface churn wiped it) - reapplying"
+    apply_qos "$WAN_IF" "$PRIORITY_IP"
   fi
 
   sleep "$CHECK_INTERVAL"

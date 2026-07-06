@@ -17,7 +17,15 @@ fi
 # itself) means stray % in the decoded text can't be misread as a printf
 # conversion.
 RAW=$(printf '%s' "$BODY" | sed -n 's/^message=//p')
-DECODED=$(printf '%s' "$RAW" | sed 's/+/ /g; s/%/\x/g')
+# The replacement here must be an escaped backslash (\\x), not \x - sed
+# treats \x before an ordinary character as just that character, so
+# \x alone silently drops the backslash and printf %b never sees a
+# real \xHH escape. Confirmed broken 2026-07-06 (produced literal
+# "x3A" instead of "\x3A" for a %3A), caught by rename_device.cgi
+# feeding a colon-containing MAC through this same decode pattern -
+# plain message text rarely contains a literal "%" so this went
+# unnoticed here until now.
+DECODED=$(printf '%s' "$RAW" | sed 's/+/ /g; s/%/\\x/g')
 MESSAGE=$(printf '%b' "$DECODED" 2>/dev/null | cut -c1-200)
 
 if [ -n "$MESSAGE" ]; then

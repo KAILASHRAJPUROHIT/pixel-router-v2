@@ -38,7 +38,7 @@ while true; do
   fi
 
   if ! ps -ef | grep -F "busybox httpd" | grep -F "$HTTPD_PORT" | grep -v grep >/dev/null; then
-    nohup /data/adb/magisk/busybox httpd -f -p "$HTTPD_PORT" -h "$HTTPD_ROOT" -c "$HTTPD_CONF" > /data/adb/dashboard/httpd.log 2>&1 < /dev/null &
+    nohup /data/adb/magisk/busybox httpd -f -vv -p "$HTTPD_PORT" -h "$HTTPD_ROOT" -c "$HTTPD_CONF" > /data/adb/dashboard/httpd.log 2>&1 < /dev/null &
     log "busybox httpd was not running - restarted"
     CHANGED=1
   fi

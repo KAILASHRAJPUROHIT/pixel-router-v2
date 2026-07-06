@@ -26,18 +26,28 @@ esac
 
 if [ -n "$LAYOUT_IDX" ] && [ -f "$PREFS_FILE" ]; then
   sed -i "s/layout_index\" value=\"[0-9]*\"/layout_index\" value=\"${LAYOUT_IDX}\"/" "$PREFS_FILE"
-
-  # Force a fresh render immediately rather than waiting for the next
-  # natural idle-to-dream cycle - same force-stop + screensaver toggle +
-  # wake sequence established earlier tonight (a plain wake alone only
-  # resumes the cached dream, it doesn't reload the layout resource).
-  am force-stop com.router.aod >/dev/null 2>&1
-  settings put secure screensaver_enabled 0
-  sleep 1
-  settings put secure screensaver_enabled 1
-  input keyevent 224 >/dev/null 2>&1
 fi
 
+# Headers must go out before any slow work - confirmed 2026-07-06 that
+# busybox httpd silently falls back to a bare 200 with no real headers
+# at all (browser just sits on the cgi-bin URL instead of redirecting)
+# if the CGI script takes too long to print its first byte. The
+# force-stop + screensaver-toggle + wake sequence below takes 1.5-3s
+# (the sleep 1 alone accounts for a third of that), so it's backgrounded
+# to run after the response is already sent, not before.
 echo "Status: 303 See Other"
 echo "Location: /index.html"
 echo ""
+
+if [ -n "$LAYOUT_IDX" ] && [ -f "$PREFS_FILE" ]; then
+  (
+    # Force a fresh render rather than waiting for the next natural
+    # idle-to-dream cycle - a plain wake alone only resumes the cached
+    # dream, it doesn't reload the layout resource.
+    am force-stop com.router.aod >/dev/null 2>&1
+    settings put secure screensaver_enabled 0
+    sleep 1
+    settings put secure screensaver_enabled 1
+    input keyevent 224 >/dev/null 2>&1
+  ) &
+fi

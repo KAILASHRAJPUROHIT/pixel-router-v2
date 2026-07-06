@@ -265,12 +265,18 @@ scan_and_connect_once() {
 # Persistent loop, not a one-shot attempt - runs until either a borrowed
 # hotspot connects successfully or cellular recovers on its own. Every
 # cycle (~30s, dominated by the BT scan's own ~16s): re-checks presence
-# (updates the AOD prompt), re-scans for the hotspot SSID appearing, and
-# - independently, every SMS_RESEND_INTERVAL - resends the SMS trigger
-# to both phones regardless of local presence result.
+# and, the MOMENT either phone is confirmed present (BT or WiFi), fires
+# the SMS trigger to that phone immediately rather than waiting for the
+# periodic resend - this is what actually makes the hotspot turn on
+# automatically instead of just prompting a human. Independently, every
+# SMS_RESEND_INTERVAL, still resends to both phones regardless of local
+# presence result - true redundancy for a phone that's home with both
+# WiFi and Bluetooth off (undetectable locally either tier).
 trigger_failover() {
   log "Cellular down/slow for $CONSECUTIVE_BAD_NEEDED consecutive checks - entering active failover polling"
   LAST_SMS_SENT=0
+  PHONE1_SENT_THIS_PRESENCE=0
+  PHONE2_SENT_THIS_PRESENCE=0
 
   while true; do
     load_config
@@ -298,10 +304,36 @@ trigger_failover() {
       set_prompt "Main connection down - no backup device home"
     fi
 
+    # Fire immediately on first local presence confirmation, per phone -
+    # this is the "auto on" trigger, not just an informational prompt.
+    # Reset the flag once presence is lost so a later re-approach (e.g.
+    # phone left and came back) re-triggers instead of staying silent.
+    if [ "$APPROVE1" = "1" ]; then
+      if [ "$PHONE1_SENT_THIS_PRESENCE" = "0" ] && [ -n "$PHONE1_NUMBER" ]; then
+        send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"
+        log "$PHONE1_NAME confirmed present via BT/WiFi - sent trigger SMS immediately"
+        PHONE1_SENT_THIS_PRESENCE=1
+      fi
+    else
+      PHONE1_SENT_THIS_PRESENCE=0
+    fi
+    if [ "$APPROVE2" = "1" ]; then
+      if [ "$PHONE2_SENT_THIS_PRESENCE" = "0" ] && [ -n "$PHONE2_NUMBER" ]; then
+        send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"
+        log "$PHONE2_NAME confirmed present via BT/WiFi - sent trigger SMS immediately"
+        PHONE2_SENT_THIS_PRESENCE=1
+      fi
+    else
+      PHONE2_SENT_THIS_PRESENCE=0
+    fi
+
+    # Catch-all: resend to both regardless of local presence every
+    # SMS_RESEND_INTERVAL, for the case neither tier ever detects a
+    # phone that's genuinely home.
     NOW_EPOCH=$(date +%s)
     if [ $((NOW_EPOCH - LAST_SMS_SENT)) -ge "$SMS_RESEND_INTERVAL" ]; then
-      [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Sent trigger SMS to $PHONE1_NAME"; }
-      [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Sent trigger SMS to $PHONE2_NAME"; }
+      [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE1_NAME"; }
+      [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE2_NAME"; }
       LAST_SMS_SENT=$NOW_EPOCH
     fi
 

@@ -62,3 +62,48 @@ caddy-dashboard-auth` first if you're not sure which IP got banned.
 Server-side WireGuard config isn't duplicated here since it contains
 the server's private key - see the main project README for how it was
 set up (`wg0.conf` under `/etc/wireguard` on the EC2 box).
+
+## Remote adb debugging (2026-07-06)
+
+Full phone control from anywhere, not just USB, via three paths:
+
+- **USB** - unchanged, always works when physically connected to a
+  laptop.
+- **LAN/WiFi** - `adb connect 10.103.106.134:5555` (phone's IP on its
+  own hotspot bridge, `ap_br_wlan2`) from a laptop on the same
+  hotspot. Only works from the laptop currently named "Laptop" in
+  `device_names.conf` (MAC `d4:e9:8a:42:b6:89`) - see below.
+- **AWS/internet** - reuses this box's existing WireGuard tunnel
+  rather than adding a second VPN (e.g. Tailscale) on the phone. From
+  this box: `~/adb-phone.sh shell`, `~/adb-phone.sh push ...`, etc.
+  (wraps `adb connect 10.66.66.2:5555` + `adb -s 10.66.66.2:5555 ...`).
+  Works from anywhere in the world via `ssh ubuntu@13.205.101.217`,
+  independent of whether any laptop is on.
+
+**How it's kept secure**: `adb tcpip 5555` exposes port 5555 on every
+interface by design (Android doesn't support binding adbd to a
+specific interface) - so it's firewalled at the iptables INPUT chain
+instead, matching the same MAC-based model as the per-device
+Deny/Allow blocklist:
+- tcp/5555 from the laptop's WiFi MAC only (not IP - hotspot DHCP
+  leases can change)
+- tcp/5555 over `tun0` only (the WireGuard tunnel - not the whole
+  internet, just this EC2 box specifically)
+- tcp/5555 from loopback
+- everything else to tcp/5555 is dropped
+
+This is deliberately narrower than the wireless-ADB setup a
+2026-07-05 security audit found and disabled (that one was reachable
+by anyone on the hotspot with no restriction at all).
+
+**Auth**: this EC2 box's adb public key (`~/.android/adbkey.pub`
+here) is appended directly to the phone's
+`/data/misc/adb/adb_keys` (system-trusted keys, root-writable) so it
+never needs the on-device "always allow" tap a normal adb connection
+prompts for - there's no display attached to approve it anyway. Any
+new device that needs adb access this way needs its own pubkey added
+the same way.
+
+Both `adb tcpip 5555` and the iptables rules reset on every phone
+reboot - `router-scripts/service.d/remote_adb_boot.sh` re-asserts both
+at boot (one-shot, same pattern as `mac_blocklist_boot.sh`).

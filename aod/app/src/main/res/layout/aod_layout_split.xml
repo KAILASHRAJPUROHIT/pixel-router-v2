@@ -39,6 +39,15 @@
             android:textAllCaps="true"
             android:layout_marginTop="8dp"
             android:text="--" />
+
+        <TextView
+            android:id="@+id/perf_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:textSize="10sp"
+            android:alpha="0.6"
+            android:text="--" />
     </LinearLayout>
 
     <View

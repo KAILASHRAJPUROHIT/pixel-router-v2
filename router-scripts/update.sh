@@ -302,6 +302,15 @@ while true; do
       CUSTOM_MESSAGE="$MSG_TEXT"
     fi
   fi
+  # failover_monitor.sh writes this (no expiry - persists until it
+  # clears the file itself, either once a backup hotspot connects or
+  # once our own cellular recovers) when it wants a human to manually
+  # flip a phone's Personal Hotspot on. Takes priority over the timed
+  # custom message since it's actionable, not just informational.
+  FAILOVER_PROMPT_FILE=/data/adb/dashboard/failover_prompt.txt
+  if [ -s "$FAILOVER_PROMPT_FILE" ]; then
+    CUSTOM_MESSAGE=$(cat "$FAILOVER_PROMPT_FILE")
+  fi
   # HTML-escape before embedding - this is free-form user input going
   # straight into the page, and it also has to stay parseable by the
   # AOD's label/value regex (which stops at the first "<").

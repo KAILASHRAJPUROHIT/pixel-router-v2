@@ -1,6 +1,13 @@
 # Copy to /data/adb/dashboard/failover.properties on the phone (gitignored,
 # never committed) with your real values. Used by failover_monitor.sh.
 #
+# Simplified 2026-07-06 to drop the iPhone Shortcuts/SMS handshake
+# entirely - no more phoneN.number, no more home.lat/home.lon. Presence
+# is now WiFi (instant) then Bluetooth (~15s scan) only, and instead of
+# remotely triggering Personal Hotspot via SMS, the AOD screen just
+# tells you to turn it on yourself once a known phone is confirmed
+# present. No Shortcuts automation needed on either iPhone anymore.
+#
 # phoneN.ssid must exactly match the iPhone's Personal Hotspot name as it
 # appears in Wi-Fi scans (Settings > Personal Hotspot > Wi-Fi Password
 # screen on the iPhone shows both the name and password).
@@ -13,16 +20,19 @@
 # 2026-07-06. If your hotspot name has an apostrophe, copy it directly
 # from `cmd wifi status` or a scan result rather than typing it by hand.
 #
-# Each iPhone also needs its own Shortcuts personal automation set up
-# (Shortcuts app > Automation > Create Personal Automation > Message >
-# "Message Contains" = FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE (must match
-# SMS_TRIGGER_PHRASE in failover_monitor.sh exactly) > Run Immediately
-# (not "Ask Before Running") > Action: Set Personal Hotspot > On.
+# phoneN.mac = WiFi MAC (as seen connected to PILLYBOO - for the instant
+# presence tier). phoneN.bt_mac = Bluetooth MAC, learned from
+# `dumpsys bluetooth_manager` after pairing the phone with this device
+# once in Bluetooth settings (different from the WiFi MAC).
 
-phone1.number=+91XXXXXXXXXX
+phone1.name=CHANGEME (e.g. Kailash)
 phone1.ssid=CHANGEME iPhone hotspot name
 phone1.password=CHANGEME
+phone1.mac=CHANGEME
+phone1.bt_mac=CHANGEME
 
-phone2.number=+91XXXXXXXXXX
+phone2.name=CHANGEME (e.g. Beena)
 phone2.ssid=CHANGEME iPhone hotspot name
 phone2.password=CHANGEME
+phone2.mac=CHANGEME
+phone2.bt_mac=CHANGEME

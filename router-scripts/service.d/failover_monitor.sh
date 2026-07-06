@@ -4,20 +4,32 @@
 # member's iPhone Personal Hotspot so devices on our own hotspot
 # (PILLYBOO) keep working, instead of everyone silently losing internet.
 #
-# Simplified 2026-07-06 to drop the iPhone Shortcuts/SMS handshake
-# entirely (WHEREAREYOU location query + remote hotspot-enable trigger)
-# - iPhones give no real API to flip Personal Hotspot on remotely, and
-# the two-phase SMS/GPS dance was extra complexity and SMS-quota cost
-# for what's fundamentally a problem a human can solve in one tap. Now:
-# presence is checked via WiFi (instant) then Bluetooth (bt_presence_
-# check, ~15s scan via BtScanService in the AOD app - there's no BT scan
-# CLI on this Android build). If a known phone is present, the AOD
-# screen just tells you to turn its hotspot on yourself
-# (failover_prompt.txt, picked up by update.sh/RouterDreamService's
-# existing full-screen message overlay); if neither is present, it says
-# so. Once the hotspot appears, this script still auto-detects and
-# connects to it the same way as before - only the "ask the phone to
-# turn it on" step became a human instruction instead of an SMS.
+# Redesigned 2026-07-06 as an escalation cascade rather than a single
+# mechanism: Bluetooth presence -> WiFi presence -> SMS-triggered
+# self-checking Shortcut, so the fallback tiers cover each other's blind
+# spots instead of any one of them being a single point of failure.
+#
+# - bt_presence_check (~15s scan via BtScanService in the AOD app -
+#   there's no BT scan CLI on this Android build) and
+#   wifi_presence_check (instant, checks our own hotspot's client list)
+#   both poll every ~30s while failover is needed. Either one confirming
+#   a phone is home updates the AOD prompt to tell you which phone's
+#   hotspot to turn on.
+# - In parallel, every SMS_RESEND_INTERVAL (30 min) this also texts
+#   SMS_TRIGGER_PHRASE to both phones regardless of local presence
+#   result - true redundancy for the common case where a phone is
+#   actually home but both WiFi and Bluetooth are off (which is the
+#   normal state here specifically to avoid loading the router). Each
+#   iPhone's own Shortcuts Personal Automation (Message contains
+#   SMS_TRIGGER_PHRASE -> Run Immediately) checks its OWN current
+#   location and only turns Personal Hotspot on if it's actually home,
+#   otherwise does nothing - so it's safe to send even when we don't
+#   know whether that phone is home, and there's no location data
+#   round-tripping back to the router the way the old WHEREAREYOU/GPS
+#   handshake needed.
+# - Whichever tier actually works, this script auto-detects the
+#   resulting hotspot appearing and connects to it the same way either
+#   way - only the "ask the phone to turn it on" step differs.
 #
 # How the handoff itself still works:
 # - This phone's hardware confirmed to support simultaneous AP+STA
@@ -46,8 +58,11 @@ CHECK_INTERVAL=120          # 2 min between checks while on our own connection
 LOW_SPEED_THRESHOLD_MBPS=1
 CONSECUTIVE_BAD_NEEDED=3    # ~6 min of sustained bad readings before failing over
 RECOVERY_CHECK_INTERVAL=300 # 5 min between checks while borrowed
-HOTSPOT_SCAN_TIMEOUT=180    # give a manually-enabled hotspot up to 3 min to appear
+FAILOVER_POLL_INTERVAL=30   # presence re-check cadence while failover is active
+HOTSPOT_SCAN_WAIT=8         # per-cycle wifi scan-results settle time
+SMS_RESEND_INTERVAL=1800    # 30 min between SMS-trigger resends (100/day quota)
 BT_SCAN_WAIT=16             # BtScanService's own discovery window is ~14s
+SMS_TRIGGER_PHRASE="FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
@@ -67,22 +82,26 @@ clear_prompt() {
 
 # Config file (gitignored, same pattern as dashboard.properties):
 #   phone1.name=Kailash
+#   phone1.number=+91XXXXXXXXXX     (for the SMS-trigger tier)
 #   phone1.ssid=iPhone (Kailash)
 #   phone1.password=xxxxxxxx
 #   phone1.mac=xx:xx:xx:xx:xx:xx     (WiFi MAC, as seen connected to PILLYBOO)
 #   phone1.bt_mac=xx:xx:xx:xx:xx:xx  (Bluetooth MAC, once paired - separate from WiFi MAC)
 #   phone2.name=Beena
+#   phone2.number=+91XXXXXXXXXX
 #   phone2.ssid=iPhone (Wife)
 #   phone2.password=xxxxxxxx
 #   phone2.mac=xx:xx:xx:xx:xx:xx
 #   phone2.bt_mac=xx:xx:xx:xx:xx:xx
 load_config() {
   PHONE1_NAME=$(grep "^phone1.name=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  PHONE1_NUMBER=$(grep "^phone1.number=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_SSID=$(grep "^phone1.ssid=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_PASSWORD=$(grep "^phone1.password=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_MAC=$(grep "^phone1.mac=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE1_BT_MAC=$(grep "^phone1.bt_mac=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_NAME=$(grep "^phone2.name=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
+  PHONE2_NUMBER=$(grep "^phone2.number=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_SSID=$(grep "^phone2.ssid=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_PASSWORD=$(grep "^phone2.password=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
   PHONE2_MAC=$(grep "^phone2.mac=" "$CONFIG" 2>/dev/null | cut -d= -f2-)
@@ -128,13 +147,26 @@ bt_presence_check() {
   grep -qi "$BT_MAC" "$RESULT_FILE"
 }
 
-# Tries WiFi first (instant), only falls through to the ~16s Bluetooth
-# scan if WiFi didn't confirm it.
+# Tries Bluetooth first, then WiFi - both are polled every cycle either
+# way (see the main loop), but this ordering matters for logging/early-
+# return purposes when only one tier is checked in isolation elsewhere.
 presence_check() {
   WIFI_MAC="$1"
   BT_MAC="$2"
-  wifi_presence_check "$WIFI_MAC" && return 0
-  bt_presence_check "$BT_MAC"
+  bt_presence_check "$BT_MAC" && return 0
+  wifi_presence_check "$WIFI_MAC"
+}
+
+send_sms() {
+  NUMBER="$1"
+  MESSAGE="$2"
+  [ -z "$NUMBER" ] && return
+  # Must target the receiver explicitly (-n) - confirmed 2026-07-06 that
+  # an implicit action-only broadcast never reaches it at all (Android
+  # 8+ blocks implicit broadcasts to manifest-declared receivers, even
+  # exported ones, specifically to stop apps waking on arbitrary custom
+  # actions; explicit-component broadcasts aren't subject to that).
+  am broadcast -n com.router.aod/.SendSmsReceiver -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$MESSAGE" >/dev/null 2>&1
 }
 
 detect_wan_if() {
@@ -207,78 +239,90 @@ forget_network_by_ssid() {
   fi
 }
 
-# Scans for either APPROVED iPhone SSID (i.e. one confirmed present by
-# presence_check - $1/$2 are "1" if phone1/phone2 is approved), connects
-# to whichever is seen first. Retries within HOTSPOT_SCAN_TIMEOUT to
-# give the human time to actually walk over and flip Personal Hotspot on
-# after seeing the AOD prompt.
-try_connect_to_any_hotspot() {
-  APPROVE1="$1"
-  APPROVE2="$2"
-  ELAPSED=0
-  while [ "$ELAPSED" -lt "$HOTSPOT_SCAN_TIMEOUT" ]; do
-    cmd wifi start-scan >/dev/null 2>&1
-    sleep 8
-    SCAN_RESULTS=$(cmd wifi list-scan-results 2>/dev/null)
+# Single scan+connect attempt (no internal retry loop) - the outer
+# trigger_failover loop now owns the retry cadence at
+# FAILOVER_POLL_INTERVAL, so this just needs to try once per call.
+scan_and_connect_once() {
+  cmd wifi start-scan >/dev/null 2>&1
+  sleep "$HOTSPOT_SCAN_WAIT"
+  SCAN_RESULTS=$(cmd wifi list-scan-results 2>/dev/null)
 
-    if [ "$APPROVE1" = "1" ] && [ -n "$PHONE1_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE1_SSID"; then
-      log "Found $PHONE1_SSID - connecting"
-      cmd wifi connect-network "$PHONE1_SSID" wpa2 "$PHONE1_PASSWORD" >/dev/null 2>&1
-      echo "$PHONE1_SSID"
-      return 0
-    fi
-    if [ "$APPROVE2" = "1" ] && [ -n "$PHONE2_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE2_SSID"; then
-      log "Found $PHONE2_SSID - connecting"
-      cmd wifi connect-network "$PHONE2_SSID" wpa2 "$PHONE2_PASSWORD" >/dev/null 2>&1
-      echo "$PHONE2_SSID"
-      return 0
-    fi
-
-    ELAPSED=$((ELAPSED + 10))
-  done
+  if [ -n "$PHONE1_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE1_SSID"; then
+    log "Found $PHONE1_SSID - connecting"
+    cmd wifi connect-network "$PHONE1_SSID" wpa2 "$PHONE1_PASSWORD" >/dev/null 2>&1
+    echo "$PHONE1_SSID"
+    return 0
+  fi
+  if [ -n "$PHONE2_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE2_SSID"; then
+    log "Found $PHONE2_SSID - connecting"
+    cmd wifi connect-network "$PHONE2_SSID" wpa2 "$PHONE2_PASSWORD" >/dev/null 2>&1
+    echo "$PHONE2_SSID"
+    return 0
+  fi
   return 1
 }
 
+# Persistent loop, not a one-shot attempt - runs until either a borrowed
+# hotspot connects successfully or cellular recovers on its own. Every
+# cycle (~30s, dominated by the BT scan's own ~16s): re-checks presence
+# (updates the AOD prompt), re-scans for the hotspot SSID appearing, and
+# - independently, every SMS_RESEND_INTERVAL - resends the SMS trigger
+# to both phones regardless of local presence result.
 trigger_failover() {
-  log "Cellular down/slow for $CONSECUTIVE_BAD_NEEDED consecutive checks - checking presence"
+  log "Cellular down/slow for $CONSECUTIVE_BAD_NEEDED consecutive checks - entering active failover polling"
+  LAST_SMS_SENT=0
 
-  APPROVE1=0; APPROVE2=0
-  presence_check "$PHONE1_MAC" "$PHONE1_BT_MAC" && { APPROVE1=1; log "$PHONE1_NAME confirmed present"; }
-  presence_check "$PHONE2_MAC" "$PHONE2_BT_MAC" && { APPROVE2=1; log "$PHONE2_NAME confirmed present"; }
+  while true; do
+    load_config
 
-  if [ "$APPROVE1" = "0" ] && [ "$APPROVE2" = "0" ]; then
-    log "Neither phone present - showing generic down message, will re-check next poll"
-    set_prompt "Main connection down - no backup device home"
-    return 1
-  fi
+    if cellular_reachable; then
+      MBPS=$(measure_cellular_mbps)
+      if awk -v m="$MBPS" -v t="$LOW_SPEED_THRESHOLD_MBPS" 'BEGIN{exit !(m>=t)}'; then
+        log "Cellular recovered on its own during active polling - exiting failover"
+        clear_prompt
+        return 1
+      fi
+    fi
 
-  if [ "$APPROVE1" = "1" ] && [ "$APPROVE2" = "1" ]; then
-    set_prompt "Main connection down - turn on $PHONE1_NAME's or $PHONE2_NAME's hotspot"
-  elif [ "$APPROVE1" = "1" ]; then
-    set_prompt "Main connection down - turn on $PHONE1_NAME's hotspot"
-  else
-    set_prompt "Main connection down - turn on $PHONE2_NAME's hotspot"
-  fi
+    APPROVE1=0; APPROVE2=0
+    presence_check "$PHONE1_MAC" "$PHONE1_BT_MAC" && { APPROVE1=1; log "$PHONE1_NAME confirmed present"; }
+    presence_check "$PHONE2_MAC" "$PHONE2_BT_MAC" && { APPROVE2=1; log "$PHONE2_NAME confirmed present"; }
 
-  CONNECTED_SSID=$(try_connect_to_any_hotspot "$APPROVE1" "$APPROVE2")
-  if [ -z "$CONNECTED_SSID" ]; then
-    log "No hotspot appeared within ${HOTSPOT_SCAN_TIMEOUT}s - giving up this cycle, will retry next poll"
-    return 1
-  fi
+    if [ "$APPROVE1" = "1" ] && [ "$APPROVE2" = "1" ]; then
+      set_prompt "Main connection down - turn on $PHONE1_NAME's or $PHONE2_NAME's hotspot"
+    elif [ "$APPROVE1" = "1" ]; then
+      set_prompt "Main connection down - turn on $PHONE1_NAME's hotspot"
+    elif [ "$APPROVE2" = "1" ]; then
+      set_prompt "Main connection down - turn on $PHONE2_NAME's hotspot"
+    else
+      set_prompt "Main connection down - no backup device home"
+    fi
 
-  # Give Android's tethering a moment to re-home the upstream, then verify.
-  sleep 10
-  if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
-    log "Connected to $CONNECTED_SSID - internet confirmed via borrowed hotspot"
-    echo "$CONNECTED_SSID" > /data/adb/dashboard/borrowed_ssid
-    set_internet_type "borrowed"
-    clear_prompt
-    return 0
-  else
-    log "Connected to $CONNECTED_SSID but internet not reachable - will retry next poll"
-    forget_network_by_ssid "$CONNECTED_SSID"
-    return 1
-  fi
+    NOW_EPOCH=$(date +%s)
+    if [ $((NOW_EPOCH - LAST_SMS_SENT)) -ge "$SMS_RESEND_INTERVAL" ]; then
+      [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Sent trigger SMS to $PHONE1_NAME"; }
+      [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Sent trigger SMS to $PHONE2_NAME"; }
+      LAST_SMS_SENT=$NOW_EPOCH
+    fi
+
+    CONNECTED_SSID=$(scan_and_connect_once)
+    if [ -n "$CONNECTED_SSID" ]; then
+      # Give Android's tethering a moment to re-home the upstream, then verify.
+      sleep 10
+      if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
+        log "Connected to $CONNECTED_SSID - internet confirmed via borrowed hotspot"
+        echo "$CONNECTED_SSID" > /data/adb/dashboard/borrowed_ssid
+        set_internet_type "borrowed"
+        clear_prompt
+        return 0
+      else
+        log "Connected to $CONNECTED_SSID but internet not reachable - forgetting and retrying"
+        forget_network_by_ssid "$CONNECTED_SSID"
+      fi
+    fi
+
+    sleep "$FAILOVER_POLL_INTERVAL"
+  done
 }
 
 return_to_own_connection() {

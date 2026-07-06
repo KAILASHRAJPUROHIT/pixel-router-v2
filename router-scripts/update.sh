@@ -281,6 +281,68 @@ while true; do
     ROWS="<tr><td colspan=6>No devices connected</td></tr>"
   fi
 
+  # Recent SMS: mirrors the last N genuinely-received messages (type=1,
+  # excludes the forwarder app's own sent/relay copies) straight to the
+  # dashboard - separate from cn.ppps.forwarder's own filtering rules
+  # (banking/weather still get forwarded per that app's rule per
+  # 2026-07-06's blacklist setup), this is just a quick glance without
+  # needing to unlock the phone at all.
+  #
+  # `content query`'s output has one blank-line-separated "Row: N ..."
+  # block per message, and message bodies can themselves contain
+  # embedded newlines - RS="Row: " (a busybox awk extension, confirmed
+  # working here 2026-07-06) splits cleanly on real row boundaries
+  # regardless of that. address/date are found by searching for the
+  # LAST ", date=" substring rather than the first, since a body could
+  # in principle contain that exact text coincidentally.
+  SMS_LIMIT=15
+  SMS_ROWS=$(content query --uri content://sms --projection address:body:date --where "type=1" --sort "date DESC" 2>/dev/null | awk -v limit="$SMS_LIMIT" '
+    BEGIN { RS="Row: "; count=0 }
+    NR>1 {
+      if (count >= limit) exit
+      rec = $0
+      astart = index(rec, "address=") + 8
+      aend = index(rec, ", body=") - 1
+      addr = substr(rec, astart, aend - astart + 1)
+      dpos = 0
+      tmp = rec
+      offset = 0
+      while ((p = index(tmp, ", date=")) > 0) {
+        dpos = offset + p
+        offset += p + 6
+        tmp = substr(tmp, p + 7)
+      }
+      bstart = aend + 8
+      bend = dpos - 1
+      body = substr(rec, bstart, bend - bstart + 1)
+      datestr = substr(rec, dpos + 7)
+      gsub(/[\r\n]+$/, "", datestr)
+      gsub(/\n/, " ", body)
+      gsub(/\|/, "-", body); gsub(/\|/, "-", addr)
+      print addr "|" datestr "|" body
+      count++
+    }
+  ' | while IFS='|' read -r saddr sdate sbody; do
+      # HTML-escape - this is real message content, could contain <, >,
+      # & (URLs etc). No length truncation - `cut -c` operates on raw
+      # bytes not Unicode codepoints, which would corrupt multi-byte
+      # Devanagari/Marathi text at the cut boundary (many senders here
+      # send Marathi weather alerts); SMS bodies are naturally
+      # length-capped anyway so this doesn't risk huge page bloat.
+      saddr_esc=$(printf '%s' "$saddr" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+      sbody_esc=$(printf '%s' "$sbody" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+      # Shell $(( )) arithmetic is 32-bit signed on this device (same
+      # class of bug already found in the cumulative-bytes counters
+      # elsewhere in this script) - a millisecond epoch (13 digits) is
+      # far beyond that range and silently wraps to garbage, confirmed
+      # 2026-07-06 (produced "12-Jan" instead of the real date). awk
+      # uses double-precision, same fix pattern as those counters.
+      sdate_sec=$(awk -v ms="$sdate" 'BEGIN{printf "%.0f", ms/1000}')
+      stime=$(date -d "@$sdate_sec" "+%H:%M %d-%b" 2>/dev/null)
+      printf '<div style="background:#151515; border-radius:8px; padding:10px 14px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8em;"><span>%s</span><span>%s</span></div><div style="margin-top:4px; font-size:0.9em; word-break:break-word;">%s</div></div>\n' "$saddr_esc" "$stime" "$sbody_esc"
+    done)
+  [ -z "$SMS_ROWS" ] && SMS_ROWS='<div style="color:#888;">No messages</div>'
+
   # AOD status: which Daydream is currently active. idle_photo_switcher.sh
   # flips this between our own stats AOD and Google Photos' built-in
   # screensaver based on idleness/time of day - surface which one is live
@@ -380,6 +442,9 @@ while true; do
 <head>
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="10">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Router Status</title>
 <style>
   * { box-sizing:border-box; }
@@ -437,6 +502,10 @@ while true; do
 <tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
 ${ROWS}
 </table>
+<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Recent SMS</h3>
+<div style="max-width:680px;">
+${SMS_ROWS}
+</div>
 <script>
 // Polls speed.json (written every 2s by speed_monitor.sh, a dedicated
 // fast-sampling loop separate from this page's own ~10-15s regeneration

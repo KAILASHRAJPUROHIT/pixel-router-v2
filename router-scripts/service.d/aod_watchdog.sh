@@ -81,11 +81,21 @@ while true; do
       *router.aod*) : ;; # already ours, nothing to do
       *)
         # System Doze (or nothing) has taken over instead of our dream.
-        # A fresh wake forces DreamManagerService to re-evaluate from
-        # scratch, which - once the settings above are correct - lets
-        # our dream win the next idle cycle instead of Doze.
+        # A plain wake alone was confirmed insufficient here 2026-07-06 -
+        # this exact corrective action fired repeatedly all evening
+        # (every few minutes) with Doze immediately winning right back
+        # each time, meaning the fix was never actually sticking. A
+        # force-stop + screensaver-enabled toggle + wake is the
+        # established reliable sequence (same one set_aod_layout.cgi
+        # uses) - a plain wake only resumes/re-evaluates against
+        # whatever DreamManagerService already has cached, while the
+        # toggle forces a genuinely fresh dream-selection pass.
+        am force-stop com.router.aod >/dev/null 2>&1
+        settings put secure screensaver_enabled 0
+        sleep 1
+        settings put secure screensaver_enabled 1
         input keyevent KEYCODE_WAKEUP
-        log "Doze/other dream ($CURRENT_DREAM) had taken over instead of ours - forced a fresh wake to re-trigger selection"
+        log "Doze/other dream ($CURRENT_DREAM) had taken over instead of ours - force-stopped + toggled screensaver + fresh wake to re-trigger selection"
         CHANGED=1
         ;;
     esac

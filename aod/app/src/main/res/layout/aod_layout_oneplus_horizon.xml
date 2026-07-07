@@ -13,6 +13,7 @@
 
     <TextView android:id="@+id/date" android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:textSize="13sp" android:layout_marginTop="6dp" android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
 
     <FrameLayout
         android:layout_width="170dp"
@@ -29,8 +30,7 @@
 
     <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
         <TextView android:id="@+id/net_type_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="10sp" android:alpha="0.7" android:text="--" />
-        <TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:textSize="10sp" android:alpha="0.7" android:text="--" />
-    </LinearLayout>
+        </LinearLayout>
     <TextView android:id="@+id/perf_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="9sp" android:alpha="0.5" android:text="--" />
     <TextView android:id="@+id/muhurat_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textStyle="bold" android:visibility="gone" android:text="--" />
 

@@ -574,6 +574,13 @@ while true; do
   }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--muted)); flex-shrink: 0; }
   .pill .lbl { color: var(--muted); font-weight: 400; }
+  /* .pill's own flex layout already arranges these in a row - no
+     display override needed on the divs themselves, which matters
+     because RouterDreamService.java's parser requires the label div's
+     opening tag to be the bare, attribute-free "<div class=\"label\">"
+     literal (see the comment above the pills markup). */
+  .pill .label { color: var(--muted); font-weight: 400; }
+  .pill .value { font-weight: 600; }
 
   /* Card grid: every section (Network, Device Health, AOD Controls,
      Devices, SMS, Debug) is its own titled card, not a flat wall of
@@ -636,10 +643,19 @@ while true; do
     <div class="date">${NOW_DATE}</div>
   </div>
   <div class="pills">
-    <div class="pill"><span class="dot" style="--c:${HEALTH_COLOR}"></span><span class="lbl">Health</span> ${HEALTH_LABEL}</div>
-    <div class="pill"><span class="dot" style="--c:${NET_COLOR}"></span><span class="lbl">Internet</span> ${NET_LABEL}</div>
+    <!-- These pills' label/value divs must stay in this EXACT adjacent
+         div.label + div.value form (no wrapping span, no whitespace
+         between the two divs) - RouterDreamService.java's STAT_PATTERN
+         regex parses this exact HTML to populate the AOD across all 30
+         layouts, and "Health"/"Internet"/"Signal" are keys it looks up
+         directly (Internet/Signal are also STAT_KEYS row8/row9 in
+         every layout's stat grid). Confirmed broken 2026-07-07 when the
+         redesign first used span.lbl here instead - every layout's
+         Internet/Signal rows and the health badge went stale. -->
+    <div class="pill"><span class="dot" style="--c:${HEALTH_COLOR}"></span><div class="label">Health</div><div class="value">${HEALTH_LABEL}</div></div>
+    <div class="pill"><span class="dot" style="--c:${NET_COLOR}"></span><div class="label">Internet</div><div class="value">${NET_LABEL}</div></div>
     <div class="pill"><span class="dot" style="--c:${AOD_COLOR}"></span><span class="lbl">AOD</span> ${AOD_LABEL}</div>
-    <div class="pill"><span class="dot" style="--c:${SIGNAL_COLOR}"></span><span class="lbl">Signal</span> ${SIGNAL_LABEL}</div>
+    <div class="pill"><span class="dot" style="--c:${SIGNAL_COLOR}"></span><div class="label">Signal</div><div class="value">${SIGNAL_LABEL}</div></div>
   </div>
 </div>
 
@@ -672,7 +688,7 @@ while true; do
   <div class="card">
     <div class="card-title"><span class="accent-bar"></span>AKD</div>
     <div class="stat-grid">
-      <div class="stat"><div class="label">Followers</div><div class="value" style="font-size:1.05em;">${AKD_BADGE_TEXT}</div></div>
+      <div class="stat"><div class="label">AKD</div><div class="value" style="font-size:1.05em;">${AKD_BADGE_TEXT}</div></div>
     </div>
   </div>
 </div>
@@ -680,7 +696,10 @@ while true; do
 <div class="grid">
   <div class="card">
     <div class="card-title"><span class="accent-bar"></span>Custom Message</div>
-    <div class="stat" style="margin-bottom:14px; padding:0;"><div class="label">Currently showing</div><div class="value" style="font-size:1.1em;">${CUSTOM_MESSAGE_ESC}</div></div>
+    <!-- Label must stay literally "Custom Message" - RouterDreamService.java
+         looks it up by this exact key to drive messageOverlay across
+         every layout. -->
+    <div class="stat" style="margin-bottom:14px; padding:0;"><div class="label">Custom Message</div><div class="value" style="font-size:1.1em;">${CUSTOM_MESSAGE_ESC}</div></div>
     <form method="POST" action="/cgi-bin/message.cgi">
       <input type="text" name="message" maxlength="200" placeholder="Send a message home..." style="width:100%; margin-bottom:8px;">
       <div class="form-row">

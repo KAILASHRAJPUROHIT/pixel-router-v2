@@ -15,10 +15,9 @@
             android:textSize="36sp" android:fontFamily="sans-serif-light" android:text="--:--" />
         <TextView android:id="@+id/net_type_badge" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:layout_gravity="top" android:gravity="end" android:textSize="11sp" android:text="--" />
-        <TextView android:id="@+id/akd_badge" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:layout_gravity="top" android:gravity="end" android:textSize="11sp" android:text="--" />
-    </LinearLayout>
+        </LinearLayout>
     <TextView android:id="@+id/date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="13sp" android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
     <TextView android:id="@+id/perf_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="10sp" android:alpha="0.6" android:text="--" />
     <TextView android:id="@+id/health_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
         android:textAllCaps="true" android:textStyle="bold" android:textSize="13sp" android:textColor="#2ecc71" android:text="--" />

@@ -406,7 +406,10 @@ public class RouterDreamService extends DreamService {
         if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
         if (perfBadge != null) perfBadge.setTextColor(theme.textMuted);
         if (netTypeBadge != null) netTypeBadge.setTextColor(theme.textMuted);
-        if (akdBadge != null) akdBadge.setTextColor(theme.textMuted);
+        // Accent, not muted, since this was explicitly asked to be made
+        // prominent (2026-07-07) - was buried as a tiny gray corner
+        // label before, easy to miss on most layouts.
+        if (akdBadge != null) akdBadge.setTextColor(theme.accent);
 
         // fixedStatColors layouts (the "vibrant multi-color" set - One UI
         // Color, Neon Cyber, Rainbow Dash etc.) bake their own per-stat

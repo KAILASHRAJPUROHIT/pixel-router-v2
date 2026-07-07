@@ -19,14 +19,9 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
 }
 
-# Same rmnet-only byte sum as update.sh's lifetime counter - cellular
-# specifically, never wlan0/wlan2, so borrowed-hotspot browsing never
-# counts against this quota.
-sum_all_rmnet_bytes() {
-  awk '
-    $1 ~ /^rmnet[0-9]+:/ { rx+=$2; tx+=$10 }
-    END { print rx+tx }' /proc/net/dev
-}
+# sum_all_rmnet_bytes - shared with update.sh and speed_monitor.sh,
+# extracted 2026-07-07 (see lib/net_common.sh's header comment).
+. "$STATE_DIR/lib_net_common.sh"
 
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2

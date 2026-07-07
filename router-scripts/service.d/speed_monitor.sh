@@ -10,27 +10,11 @@
 WWW=/data/local/tmp/dashboard
 SAMPLE_INTERVAL=2
 BUSYBOX=/data/adb/magisk/busybox
-
-detect_wan_if() {
-  # Same logic as update.sh's detect_wan_if() - kept in sync manually
-  # since this is a separate always-on loop, not a shared function.
-  if [ "$(cat /data/adb/dashboard/internet_type 2>/dev/null)" = "borrowed" ]; then
-    echo wlan0
-    return
-  fi
-  CANDIDATE=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="dev") print $(i+1)}' | grep '^rmnet' | head -1)
-  if [ -n "$CANDIDATE" ]; then
-    echo "$CANDIDATE"
-  else
-    awk '$1 ~ /^rmnet[0-9]+:/ { print $1, $2+$10 }' /proc/net/dev | sort -k2 -rn | head -1 | sed 's/://' | awk '{print $1}'
-  fi
-}
-
-get_bytes() {
-  awk -v ifc="$1:" -v field="$2" '
-    $1==ifc { if (field=="rx") print $2; else print $10; found=1 }
-    END { if (!found) print 0 }' /proc/net/dev
-}
+# detect_wan_if/get_bytes - shared with update.sh and
+# cellular_quota_monitor.sh, extracted 2026-07-07 after being
+# copy-pasted into all three ("kept in sync manually" was the old
+# approach here).
+. /data/adb/dashboard/lib_net_common.sh
 
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2

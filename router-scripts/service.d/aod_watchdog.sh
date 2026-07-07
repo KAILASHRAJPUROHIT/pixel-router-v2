@@ -54,6 +54,23 @@ while true; do
     CHANGED=1
   fi
 
+  # Heat-reduction pass 2026-07-07: NFC and adaptive brightness are both
+  # unused/counterproductive on a stationary router with no NFC use case
+  # and a fixed AOD display that shouldn't get brighter just because a
+  # room is sunlit - re-assert both off/fixed here in case either drifts
+  # back (e.g. an OS update re-enabling NFC by default), same pattern as
+  # every other drift check in this loop.
+  if [ "$(dumpsys nfc 2>/dev/null | grep -m1 mState= | sed 's/.*mState=//')" != "off" ]; then
+    svc nfc disable >/dev/null 2>&1
+    log "NFC had turned back on - disabled again"
+    CHANGED=1
+  fi
+  if [ "$(settings get system screen_brightness_mode 2>/dev/null)" != "0" ]; then
+    settings put system screen_brightness_mode 0
+    log "adaptive brightness had turned back on - disabled again"
+    CHANGED=1
+  fi
+
   # battery_charge_limit.sh only sets this once at boot - re-assert
   # here too, same pattern as the other drift checks in this loop,
   # since we don't yet have full confidence it holds reliably long-term

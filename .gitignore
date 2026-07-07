@@ -4,6 +4,7 @@
 **/*.pem
 **/failover.properties
 **/akd_secrets.properties
+**/meta_secrets.properties
 
 # --- Android (aod/) ---
 aod/local.properties
@@ -22,6 +23,7 @@ ai/**/__pycache__/
 ai/*.pyc
 ai/data/*.jsonl
 ai/data/*.log
+ai/data/*.json
 ai/venv/
 ai/.venv/
 

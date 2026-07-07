@@ -61,15 +61,23 @@ PASS=$(cat "$CFG" 2>/dev/null | grep "Passphrase" | sed -E 's/.*>([^<]*)<.*/\1/'
 # `cmd wifi get-softap-supported-features`/dumpsys capability output,
 # not just a missing config option.
 #
-# Note: even with bridged_2_5 requested, the second (5GHz) radio leg
-# comes up reactively - only once a client actually negotiates it, not
-# immediately at boot - and there's no root/shell-exposed switch found
-# to force it eager (BridgedModeInstanceOpportunisticEnabled isn't in
-# the persisted XML and has no `cmd wifi` toggle). This is still a real
-# improvement over the previous always-2.4-only default though, since
-# it makes 5GHz reachable at all instead of never requested.
+# -b bridged_2_5 alone still wasn't enough on its own - the second
+# (5GHz) radio leg came up only reactively (once a client happened to
+# negotiate it), not immediately. The actual missing piece, found via a
+# web search pointing at Pixel's "Extend compatibility" hotspot setting
+# (community reports describe hotspots being "smart" and dropping back
+# to 2.4GHz): BandOptimization in the persisted SoftAp config, a
+# separate flag from BridgedModeOpportunisticShutdownEnabled. Disabling
+# it below (persisted XML edit, done once here before every start) is
+# what actually made both radios come up together immediately and kept
+# all 3 already-connected devices (2 iPhones + laptop) on 5GHz as soon
+# as it existed - confirmed live via `isBridged: true` and two real
+# SoftApInfo entries (wlan2 @ 2.4GHz, wlan3 @ 5GHz) in dumpsys wifi,
+# not just requested-but-inactive. Edited only while stopped - matches
+# the exact sequence verified live (stop, edit, start).
 cmd wifi stop-softap >/dev/null 2>&1
 sleep 2
+sed -i 's|<boolean name="BandOptimization" value="true" />|<boolean name="BandOptimization" value="false" />|' "$CFG" 2>/dev/null
 cmd wifi start-softap "$SSID" wpa2 "$PASS" -b bridged_2_5
 
 # Confirmed 2026-07-06: Android regenerates hostapd_wlan2.conf on every
@@ -83,12 +91,18 @@ cmd wifi start-softap "$SSID" wpa2 "$PASS" -b bridged_2_5
 # to start, patch its live config file, then send SIGHUP to make it
 # reload without dropping the AP (a SIGKILL here just kills hostapd
 # with no auto-restart - confirmed the hard way).
+#
+# hostapd_wlan3.conf added 2026-07-07 alongside the BandOptimization
+# fix above - true bridged mode generates a second config (one per
+# radio, wlan2=2.4GHz/wlan3=5GHz), and only wlan2's was being patched
+# before. Both configs are served by the same single hostapd process in
+# bridged mode (confirmed via `pgrep -x hostapd` showing one PID even
+# with both interfaces up), so one SIGHUP reloads both after patching.
 sleep 5
-HOSTAPD_CONF=/data/vendor/wifi/hostapd/hostapd_wlan2.conf
-if [ -f "$HOSTAPD_CONF" ]; then
-  sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
-  HOSTAPD_PID=$(pgrep -x hostapd)
-  [ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
-fi
+for HOSTAPD_CONF in /data/vendor/wifi/hostapd/hostapd_wlan2.conf /data/vendor/wifi/hostapd/hostapd_wlan3.conf; do
+  [ -f "$HOSTAPD_CONF" ] && sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
+done
+HOSTAPD_PID=$(pgrep -x hostapd)
+[ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - hotspot started with SSID=$SSID (PMF disabled for client compatibility)" >> /data/adb/dashboard/hotspot_boot.log

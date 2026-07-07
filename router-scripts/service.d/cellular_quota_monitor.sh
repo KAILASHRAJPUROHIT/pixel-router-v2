@@ -12,11 +12,33 @@ CYCLE_DAY_FILE="$STATE_DIR/billing_cycle_day"
 LAST_RESET_FILE="$STATE_DIR/billing_last_reset"
 QUOTA_FLAG_FILE="$STATE_DIR/data_cutoff_active"
 LOG="$STATE_DIR/cellular_quota_monitor.log"
+FAILOVER_CONFIG="$STATE_DIR/failover.properties"
 CUTOFF_GB=300
 CHECK_INTERVAL=300
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
+}
+
+# Same mechanism as failover_monitor.sh's send_sms() - explicit-
+# component broadcast, since Android 8+ blocks implicit broadcasts to
+# manifest-declared receivers even when exported.
+send_sms() {
+  NUMBER="$1"
+  MESSAGE="$2"
+  [ -z "$NUMBER" ] && return
+  am broadcast -n com.router.aod/.SendSmsReceiver -a com.router.aod.SEND_SMS --es number "$NUMBER" --es message "$MESSAGE" >/dev/null 2>&1
+}
+
+# Previously the only way to find out data got cut off was to notice
+# the AOD's Internet field said "Borrowed" - this pages the owner
+# (phone1 in failover.properties, the same config the failover system
+# itself uses) directly instead.
+notify_cutoff() {
+  OWNER_NUMBER=$(grep "^phone1.number=" "$FAILOVER_CONFIG" 2>/dev/null | cut -d= -f2-)
+  [ -z "$OWNER_NUMBER" ] && { log "cutoff notification skipped - no phone1.number configured in failover.properties"; return; }
+  send_sms "$OWNER_NUMBER" "Router: cellular data hit the ${CUTOFF_GB}GB cutoff for this billing cycle. Mobile data disabled, staying on borrowed internet until day $BILLING_DAY next month."
+  log "sent cutoff notification SMS to $OWNER_NUMBER"
 }
 
 # sum_all_rmnet_bytes - shared with update.sh and speed_monitor.sh,
@@ -75,6 +97,7 @@ while true; do
     touch "$QUOTA_FLAG_FILE"
     svc data disable >/dev/null 2>&1
     log "Cellular usage this cycle (${CYCLE_GB}GB) reached the ${CUTOFF_GB}GB cutoff - mobile data disabled, staying on borrowed internet until day $BILLING_DAY next month"
+    notify_cutoff
   fi
 
   sleep "$CHECK_INTERVAL"

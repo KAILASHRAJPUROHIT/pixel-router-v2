@@ -28,6 +28,16 @@
 #      completely frozen - the asymmetric-silence signature of a dead
 #      peer, not a genuinely absent one). Never route real traffic into
 #      a tunnel that isn't actually getting replies.
+#
+# Dead-detection was previously passive - it correctly stopped routing
+# into a dead tunnel but never tried to revive it, so recovery meant
+# someone noticing and manually unlocking the phone to toggle the
+# WireGuard app's GUI switch. The WireGuard app's TunnelManager exposes
+# SET_TUNNEL_DOWN/SET_TUNNEL_UP as explicit-component broadcasts
+# (confirmed live 2026-07-07 via `am broadcast`, result=0, tun0
+# unaffected by the up-call on an already-live tunnel) - these work
+# from a root shell with the screen off/locked, no GUI interaction
+# needed, removing that limitation entirely.
 STATE_DIR=/data/adb/dashboard
 LOG="$STATE_DIR/vpn_tether_routing.log"
 TUNNEL_ALIVE_FILE="$STATE_DIR/tunnel_alive"
@@ -38,6 +48,10 @@ TABLE=90
 # if the tunnel is genuinely alive, avoiding false "dead" reads from
 # checking too soon after our own keepalive just went out.
 CHECK_INTERVAL=30
+WG_RECEIVER="com.wireguard.android/.model.TunnelManager\$IntentReceiver"
+WG_TUNNEL_NAME=pxlvpn
+DEAD_STREAK_BEFORE_RECONNECT=3
+RECONNECT_COOLDOWN=300
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
@@ -61,6 +75,14 @@ remove_bypass_routing() {
   iptables -D FORWARD -i tun0 -o wlan2 -j ACCEPT 2>/dev/null
 }
 
+reconnect_tunnel() {
+  log "attempting tunnel reconnect via WireGuard app broadcast (tunnel dead for $((DEAD_STREAK_BEFORE_RECONNECT * CHECK_INTERVAL))s+)"
+  am broadcast -n "$WG_RECEIVER" -a com.wireguard.android.action.SET_TUNNEL_DOWN --es tunnel "$WG_TUNNEL_NAME" >/dev/null 2>&1
+  sleep 3
+  am broadcast -n "$WG_RECEIVER" -a com.wireguard.android.action.SET_TUNNEL_UP --es tunnel "$WG_TUNNEL_NAME" >/dev/null 2>&1
+  log "reconnect broadcast sent - next cycle's RX check will tell if it worked"
+}
+
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2
 done
@@ -68,6 +90,8 @@ sleep 30
 
 CURRENTLY_BYPASSING=0
 PREV_RX=""
+DEAD_STREAK=0
+LAST_RECONNECT_ATTEMPT=0
 
 while true; do
   INTERNET_TYPE=$(cat "$STATE_DIR/internet_type" 2>/dev/null)
@@ -83,6 +107,25 @@ while true; do
     PREV_RX=""
   fi
   echo "$TUNNEL_ALIVE" > "$TUNNEL_ALIVE_FILE"
+
+  # Only try to revive the tunnel while it's actually supposed to be
+  # doing something (self-cellular uplink) - no point reconnecting a
+  # tunnel nothing currently needs, and it'd just be extra battery/radio
+  # use while borrowing a family member's hotspot.
+  if [ "$INTERNET_TYPE" = "self" ] && [ "$TUNNEL_ALIVE" = "0" ]; then
+    DEAD_STREAK=$((DEAD_STREAK + 1))
+  else
+    DEAD_STREAK=0
+  fi
+
+  if [ "$DEAD_STREAK" -ge "$DEAD_STREAK_BEFORE_RECONNECT" ]; then
+    NOW=$(date +%s)
+    if [ "$((NOW - LAST_RECONNECT_ATTEMPT))" -ge "$RECONNECT_COOLDOWN" ]; then
+      reconnect_tunnel
+      LAST_RECONNECT_ATTEMPT=$NOW
+    fi
+    DEAD_STREAK=0
+  fi
 
   if [ "$INTERNET_TYPE" = "self" ] && [ "$TUNNEL_ALIVE" = "1" ]; then
     if [ "$CURRENTLY_BYPASSING" = "0" ]; then

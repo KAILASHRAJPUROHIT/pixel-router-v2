@@ -1,60 +1,106 @@
 #!/system/bin/sh
-# Routes tethered hotspot-client traffic (wlan2) through the WireGuard
-# tunnel (tun0) instead of raw cellular (rmnet1). Needed because:
-# - Android's native Wi-Fi hotspot tethering never routes through app
-#   VPNs by design (a deliberate OS policy), even when the VPN is active
-#   and set as the phone's own default route.
-# - VPNHotspot's app-level "Repeater"/"Temporary Wi-Fi hotspot" modes
-#   were tried and don't fit this setup (Repeater needs an upstream
-#   Wi-Fi network, not cellular; Temporary hotspot can't keep a fixed
-#   SSID/password across restarts - confirmed 2026-07-05).
-# So this does it directly via policy routing: mark packets arriving on
-# wlan2, route marked packets via a table pointing at tun0, then
-# masquerade them onto the tunnel (required since the WireGuard peer's
-# AllowedIPs=10.66.66.2/32 on the AWS side only accepts that single
-# source address - unmasqueraded tethered-client IPs would be dropped).
+# Conditionally routes tethered hotspot-client traffic (wlan2) through
+# the WireGuard tunnel (tun0) - rewritten 2026-07-07 from a one-shot
+# boot script into a persistent watchdog after a real incident: the old
+# version applied this routing ONCE at boot and never revisited it, so
+# when the tunnel later went dead (confirmed via zero replies from the
+# AWS peer in both directions) it kept silently black-holing hotspot
+# client traffic instead of falling back.
+#
+# WHY this routing exists at all: Android's native Wi-Fi hotspot
+# tethering never routes through app VPNs by design, even when the VPN
+# is the phone's own default route (confirmed 2026-07-05,
+# VPNHotspot's Repeater/Temporary-hotspot modes don't fit this setup
+# either). Airtel's tethering/hotspot detection can see and throttle
+# raw tethered traffic riding directly over cellular - masking it
+# through the WireGuard tunnel first is what evades that. This is ONLY
+# a concern while the phone's own cellular data is the actual uplink
+# (internet_type=self) - Airtel has no visibility at all into a
+# WiFi-to-WiFi bridge when borrowing a family member's hotspot
+# (internet_type=borrowed), so forcing that traffic through the tunnel
+# too would be both pointless and dangerous if the tunnel is ever down.
+#
+# So this now continuously re-evaluates two things every cycle:
+#   1. internet_type (self vs borrowed) - only bypass-route when self.
+#   2. Whether the tunnel is actually alive, not just present - a dead
+#      tun0 interface can sit there indefinitely (confirmed: TX kept
+#      incrementing from our own PersistentKeepalive while RX stayed
+#      completely frozen - the asymmetric-silence signature of a dead
+#      peer, not a genuinely absent one). Never route real traffic into
+#      a tunnel that isn't actually getting replies.
+STATE_DIR=/data/adb/dashboard
+LOG="$STATE_DIR/vpn_tether_routing.log"
+TUNNEL_ALIVE_FILE="$STATE_DIR/tunnel_alive"
+FWMARK=0x9999
+TABLE=90
+# Longer than PersistentKeepalive=25 in pxlvpn.conf - one full cycle at
+# this interval is guaranteed to span at least one keepalive round-trip
+# if the tunnel is genuinely alive, avoiding false "dead" reads from
+# checking too soon after our own keepalive just went out.
+CHECK_INTERVAL=30
+
+log() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
+}
+
+apply_bypass_routing() {
+  [ -d /sys/class/net/wlan2 ] || return 1
+  ip rule show 2>/dev/null | grep -q "fwmark $FWMARK lookup $TABLE" || ip rule add fwmark $FWMARK table $TABLE priority 100
+  ip route replace default dev tun0 table $TABLE 2>/dev/null
+  iptables -t mangle -C PREROUTING -i wlan2 -j MARK --set-mark $FWMARK 2>/dev/null || iptables -t mangle -A PREROUTING -i wlan2 -j MARK --set-mark $FWMARK
+  iptables -t nat -C POSTROUTING -o tun0 -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+  iptables -C FORWARD -i wlan2 -o tun0 -j ACCEPT 2>/dev/null || iptables -I FORWARD 1 -i wlan2 -o tun0 -j ACCEPT
+  iptables -C FORWARD -i tun0 -o wlan2 -j ACCEPT 2>/dev/null || iptables -I FORWARD 1 -i tun0 -o wlan2 -j ACCEPT
+}
+
+remove_bypass_routing() {
+  iptables -t mangle -D PREROUTING -i wlan2 -j MARK --set-mark $FWMARK 2>/dev/null
+  ip rule del fwmark $FWMARK table $TABLE 2>/dev/null
+  iptables -t nat -D POSTROUTING -o tun0 -j MASQUERADE 2>/dev/null
+  iptables -D FORWARD -i wlan2 -o tun0 -j ACCEPT 2>/dev/null
+  iptables -D FORWARD -i tun0 -o wlan2 -j ACCEPT 2>/dev/null
+}
 
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2
 done
+sleep 30
 
-# Wait for the WireGuard tunnel to come up (it's a foreground app the
-# user toggles - not guaranteed to be up immediately at boot). Give it
-# up to 5 minutes; if it never appears, skip silently (VPN tethering
-# just won't apply until the user manually reconnects the tunnel, which
-# already re-triggers wg-quick's own routes but not this script - rerun
-# manually via `su -c sh /data/adb/service.d/vpn_tether_routing.sh` if
-# reconnecting the tunnel long after boot).
-i=0
-while [ ! -d /sys/class/net/tun0 ] && [ "$i" -lt 150 ]; do
-  sleep 2
-  i=$((i + 1))
+CURRENTLY_BYPASSING=0
+PREV_RX=""
+
+while true; do
+  INTERNET_TYPE=$(cat "$STATE_DIR/internet_type" 2>/dev/null)
+
+  TUNNEL_ALIVE=0
+  if [ -d /sys/class/net/tun0 ]; then
+    CUR_RX=$(cat /sys/class/net/tun0/statistics/rx_bytes 2>/dev/null)
+    if [ -n "$PREV_RX" ] && [ -n "$CUR_RX" ] && [ "$CUR_RX" -gt "$PREV_RX" ] 2>/dev/null; then
+      TUNNEL_ALIVE=1
+    fi
+    PREV_RX=$CUR_RX
+  else
+    PREV_RX=""
+  fi
+  echo "$TUNNEL_ALIVE" > "$TUNNEL_ALIVE_FILE"
+
+  if [ "$INTERNET_TYPE" = "self" ] && [ "$TUNNEL_ALIVE" = "1" ]; then
+    if [ "$CURRENTLY_BYPASSING" = "0" ]; then
+      apply_bypass_routing
+      CURRENTLY_BYPASSING=1
+      log "On own cellular with a live tunnel - routing hotspot traffic through it (Airtel tethering-detection bypass active)"
+    fi
+  else
+    if [ "$CURRENTLY_BYPASSING" = "1" ]; then
+      remove_bypass_routing
+      CURRENTLY_BYPASSING=0
+      if [ "$INTERNET_TYPE" = "self" ]; then
+        log "On own cellular but the tunnel just went dead - falling back to direct routing (Airtel may see raw tethered traffic until it recovers) rather than black-holing hotspot clients"
+      else
+        log "Internet type is $INTERNET_TYPE, not self-cellular - no Airtel detection concern, using direct routing"
+      fi
+    fi
+  fi
+
+  sleep "$CHECK_INTERVAL"
 done
-[ ! -d /sys/class/net/tun0 ] && exit 0
-
-# Wait for the hotspot AP interface similarly (up to 2 minutes).
-i=0
-while [ ! -d /sys/class/net/wlan2 ] && [ "$i" -lt 60 ]; do
-  sleep 2
-  i=$((i + 1))
-done
-[ ! -d /sys/class/net/wlan2 ] && exit 0
-
-FWMARK=0x9999
-TABLE=90
-
-ip rule del fwmark $FWMARK table $TABLE 2>/dev/null
-ip route flush table $TABLE 2>/dev/null
-iptables -t mangle -D PREROUTING -i wlan2 -j MARK --set-mark $FWMARK 2>/dev/null
-iptables -t nat -D POSTROUTING -o tun0 -j MASQUERADE 2>/dev/null
-iptables -D FORWARD -i wlan2 -o tun0 -j ACCEPT 2>/dev/null
-iptables -D FORWARD -i tun0 -o wlan2 -j ACCEPT 2>/dev/null
-
-ip rule add fwmark $FWMARK table $TABLE priority 100
-ip route add default dev tun0 table $TABLE
-iptables -t mangle -A PREROUTING -i wlan2 -j MARK --set-mark $FWMARK
-iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-iptables -I FORWARD 1 -i wlan2 -o tun0 -j ACCEPT
-iptables -I FORWARD 1 -i tun0 -o wlan2 -j ACCEPT
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - VPN tether routing applied (wlan2 -> tun0)" >> /data/adb/dashboard/vpn_tether_routing.log

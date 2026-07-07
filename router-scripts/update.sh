@@ -500,6 +500,20 @@ while true; do
     }
   }')
 
+  # WireGuard tunnel health: vpn_tether_routing.sh writes this every
+  # ~30s - surfaced here after a real 2026-07-06/07 incident where the
+  # tunnel silently died and nobody noticed until a manual check caught
+  # it. Also feeds the AOD's own net_type_badge line so it's visible
+  # even without opening the dashboard.
+  TUNNEL_ALIVE=$(cat /data/adb/dashboard/tunnel_alive 2>/dev/null)
+  if [ ! -d /sys/class/net/tun0 ]; then
+    TUNNEL_LABEL="Not present"; TUNNEL_COLOR="#888"
+  elif [ "$TUNNEL_ALIVE" = "1" ]; then
+    TUNNEL_LABEL="Alive"; TUNNEL_COLOR="#2ecc71"
+  else
+    TUNNEL_LABEL="DEAD - reconnect WireGuard on the phone"; TUNNEL_COLOR="#e74c3c"
+  fi
+
   # Live CPU/GPU clock, for visibility into aod_power_governor.sh's
   # idle-tier throttling actually taking effect - scaling_cur_freq is the
   # frequency actually in use right now, not the scaling_max_freq ceiling
@@ -556,6 +570,7 @@ while true; do
 <div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
 <div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
 <div class="stat"><div class="label">Cellular Cycle</div><div class="value colored" style="--c:${QUOTA_COLOR}">${QUOTA_LABEL}</div></div>
+<div class="stat"><div class="label">WG Tunnel</div><div class="value colored" style="--c:${TUNNEL_COLOR}">${TUNNEL_LABEL}</div></div>
 <div class="stat"><div class="label">AKD</div><div class="value">${AKD_BADGE_TEXT}</div></div>
 <div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">

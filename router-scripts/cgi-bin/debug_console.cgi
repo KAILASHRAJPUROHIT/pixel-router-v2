@@ -13,6 +13,7 @@
 # process, so a stuck command here doesn't take the whole dashboard
 # down, but it would leave that request hanging forever without this.
 MAX_SECONDS=20
+LOG=/data/adb/dashboard/debug_console.log
 
 BODY=""
 if [ "$REQUEST_METHOD" = "POST" ] && [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
@@ -36,4 +37,22 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
-timeout "$MAX_SECONDS" su -c "$CMD" 2>&1
+# Audit trail - added 2026-07-07 security review. This CGI runs as root
+# with no restriction on what it executes, and busybox httpd's basic
+# auth is the ONLY gate in front of it - worse, the Cloudflare quick
+# tunnel path (cloudflared_tunnel.sh, a separate public *.trycloudflare.com
+# URL) reaches this same script and isn't covered by the EC2 box's
+# fail2ban jail at all (that only watches Caddy's access log for the
+# antrivarouter.duckdns.org path). A logged-then-executed record here
+# is the only after-the-fact visibility into misuse via either path,
+# since CGI scripts never even run for a *rejected* basic-auth attempt
+# (httpd gates that before invoking anything), so there's no way to
+# rate-limit or lock out failed attempts from inside this script itself.
+log() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') [${REMOTE_ADDR:-unknown}] $1" >> "$LOG"
+}
+log "CMD: $CMD"
+OUTPUT=$(timeout "$MAX_SECONDS" su -c "$CMD" 2>&1)
+EXIT_CODE=$?
+log "EXIT=$EXIT_CODE"
+printf '%s' "$OUTPUT"

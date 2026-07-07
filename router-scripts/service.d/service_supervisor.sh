@@ -26,9 +26,13 @@ HEARTBEAT_EVERY=30
 
 # Long-running loop scripts only - one-shot boot scripts (battery_charge_
 # limit.sh, conntrack.sh, dashboard_boot.sh, hotspot_on_boot.sh,
-# permanent_underclock.sh, vpn_tether_routing.sh) are meant to run once
-# and exit, so they're deliberately excluded here.
-SCRIPTS="akd_followers_fetch.sh aod_power_governor.sh aod_preview_sync.sh aod_status_poller.sh aod_watchdog.sh cellular_quota_monitor.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh hotspot_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh speed_monitor.sh thermal_monitor.sh"
+# permanent_underclock.sh) are meant to run once and exit, so they're
+# deliberately excluded here. vpn_tether_routing.sh was one-shot too
+# until 2026-07-07, when a dead-tunnel incident (see that script's own
+# comments) required converting it into a persistent watchdog that
+# continuously re-evaluates internet_type and tunnel health instead of
+# applying routing once and never revisiting it.
+SCRIPTS="akd_followers_fetch.sh aod_power_governor.sh aod_preview_sync.sh aod_status_poller.sh aod_watchdog.sh cellular_quota_monitor.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh hotspot_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh speed_monitor.sh thermal_monitor.sh vpn_tether_routing.sh"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"

@@ -26,22 +26,15 @@ public enum AodLayout {
     // glance element - the opposite instinct from the "loud" layouts.
     GLYPH_MINIMAL("Glyph minimal", R.layout.aod_layout_glyph),
 
-    // 20 reference-mockup styles added 2026-07-07 - unlike Glyph
-    // Minimal above, every one of these shows the FULL stat set (all
-    // ten stats + health/net/perf/akd badges + panchang + weather),
-    // same "nothing omitted" completeness as Bento modern/Mega grid;
-    // the mockups themselves only showed a subset, but were reference
-    // for visual style only, not a spec for which fields to include.
-    NOTHING_OS_MATRIX("Nothing OS Matrix", R.layout.aod_layout_nothing_matrix),
-    CYBERPUNK_TERMINAL("Cyberpunk Terminal", R.layout.aod_layout_cyberpunk),
-    JARVIS_HUD("Jarvis HUD", R.layout.aod_layout_jarvis),
-    TESLA_DASHBOARD("Tesla style dashboard", R.layout.aod_layout_tesla),
-    GAMING_PC_MONITOR("Gaming PC monitor", R.layout.aod_layout_gaming),
-    APPLE_WATCH_ULTRA("Apple Watch Ultra style", R.layout.aod_layout_watch_ultra),
-    SPACE_MISSION_CONTROL("Space mission control", R.layout.aod_layout_mission),
-    JAPANESE_MINIMAL("Japanese minimal tech", R.layout.aod_layout_japanese),
-    MATRIX_AOD("Matrix AOD", R.layout.aod_layout_matrix_aod),
-    KAILASH_OS("Kailash.OS creator dashboard", R.layout.aod_layout_kailash_os),
+    // 10 phone-OEM-style reference mockups added 2026-07-07 - every one
+    // of these shows the FULL stat set (all ten stats + health/net/perf/
+    // akd badges + panchang + weather), same "nothing omitted"
+    // completeness as Bento modern/Mega grid; the mockups themselves
+    // only showed a subset, but were reference for visual style only,
+    // not a spec for which fields to include. (A first batch of 10 more
+    // abstract sci-fi-themed mockups was built the same way and then
+    // removed at the user's request as "too raw" - these 10 replaced
+    // them.)
     ONE_UI_MINIMAL("One UI minimal (Samsung style)", R.layout.aod_layout_oneui_minimal),
     ONEPLUS_ACCENT("OnePlus Accent (clean & bold)", R.layout.aod_layout_oneplus_accent),
     ONEPLUS_HORIZON("OnePlus Horizon (modern & symmetrical)", R.layout.aod_layout_oneplus_horizon),
@@ -51,13 +44,40 @@ public enum AodLayout {
     ONEPLUS_GRID("OnePlus Grid (balanced)", R.layout.aod_layout_oneplus_grid),
     ONEPLUS_PRO("OnePlus Pro (smart AOD)", R.layout.aod_layout_oneplus_pro),
     SAMSUNG_ONE_UI_COMPACT("Samsung One UI compact", R.layout.aod_layout_oneui_compact),
-    ONEPLUS_FLUX("OnePlus Flux (dynamic)", R.layout.aod_layout_oneplus_flux);
+    ONEPLUS_FLUX("OnePlus Flux (dynamic)", R.layout.aod_layout_oneplus_flux),
+
+    // 10 "vibrant multi-color" reference mockups added 2026-07-07 - each
+    // stat gets its OWN fixed semantic color (wifi/internet=green,
+    // download=blue, upload=orange, devices=purple, battery=green,
+    // thermal/skin temp=red, signal=default) baked into the layout XML,
+    // not the single-accent-color-per-theme model every other layout
+    // uses. fixedStatColors=true tells RouterDreamService to leave these
+    // rows' text colors alone rather than overwriting them with the
+    // current AodTheme's textPrimary on every poll/theme switch - the
+    // whole point of these designs IS their own fixed rainbow, immune to
+    // the color picker.
+    ONE_UI_COLOR("One UI Color (vibrant)", R.layout.aod_layout_oneui_color, true),
+    ONEPLUS_BOLD_DYNAMIC("OnePlus Bold (dynamic)", R.layout.aod_layout_oneplus_bold, true),
+    NEON_CYBER("Neon Cyber (futuristic)", R.layout.aod_layout_neon_cyber, true),
+    SAMSUNG_ONE_UI_PLUS("Samsung One UI+ (colorful cards)", R.layout.aod_layout_oneui_plus, true),
+    GRADIENT_FLOW("Gradient Flow (elegant)", R.layout.aod_layout_gradient_flow, true),
+    NATURE_GREEN("Nature Green (fresh)", R.layout.aod_layout_nature_green, true),
+    SUNSET_VIBES("Sunset Vibes (warm)", R.layout.aod_layout_sunset_vibes, true),
+    OCEAN_BLUE("Ocean Blue (calm)", R.layout.aod_layout_ocean_blue, true),
+    VIOLET_GLOW("Violet Glow (premium)", R.layout.aod_layout_violet_glow, true),
+    RAINBOW_DASH("Rainbow Dash (playful)", R.layout.aod_layout_rainbow_dash, true);
 
     public final String label;
     public final int layoutRes;
+    public final boolean fixedStatColors;
 
     AodLayout(String label, int layoutRes) {
+        this(label, layoutRes, false);
+    }
+
+    AodLayout(String label, int layoutRes, boolean fixedStatColors) {
         this.label = label;
         this.layoutRes = layoutRes;
+        this.fixedStatColors = fixedStatColors;
     }
 }

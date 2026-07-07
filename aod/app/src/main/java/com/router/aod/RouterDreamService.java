@@ -117,6 +117,7 @@ public class RouterDreamService extends DreamService {
     private ExecutorService fetchExecutor;
 
     private AodTheme currentTheme;
+    private AodLayout currentLayout;
 
     private View bgRoot, panel1, panel2, panel3, railBg, divider1, panchangCard, weatherCard;
     private final View[] rowViews = new View[STAT_KEYS.length];
@@ -252,7 +253,7 @@ public class RouterDreamService extends DreamService {
         AodLayout[] layouts = AodLayout.values();
         int layoutIdx = clamp(prefs.getInt(AodSettingsActivity.KEY_LAYOUT, 0), 0, layouts.length - 1);
         int themeIdx = clamp(prefs.getInt(AodSettingsActivity.KEY_THEME, 0), 0, AodTheme.ALL.length - 1);
-        AodLayout currentLayout = layouts[layoutIdx];
+        currentLayout = layouts[layoutIdx];
         currentTheme = AodTheme.ALL[themeIdx];
 
         setContentView(currentLayout.layoutRes);
@@ -395,9 +396,18 @@ public class RouterDreamService extends DreamService {
         if (netTypeBadge != null) netTypeBadge.setTextColor(theme.textMuted);
         if (akdBadge != null) akdBadge.setTextColor(theme.textMuted);
 
+        // fixedStatColors layouts (the "vibrant multi-color" set - One UI
+        // Color, Neon Cyber, Rainbow Dash etc.) bake their own per-stat
+        // colors into the XML - the whole point of those designs is a
+        // fixed rainbow immune to the theme picker, so skip the
+        // theme-driven override here rather than flattening them to one
+        // color every time the theme (re-)applies.
+        boolean skipStatColors = currentLayout != null && currentLayout.fixedStatColors;
         for (int i = 0; i < labelViews.length; i++) {
-            labelViews[i].setTextColor(theme.textMuted);
-            valueViews[i].setTextColor(theme.textPrimary);
+            if (!skipStatColors) {
+                labelViews[i].setTextColor(theme.textMuted);
+                valueViews[i].setTextColor(theme.textPrimary);
+            }
             if (normal != null) labelViews[i].setTypeface(normal);
             if (bold != null) valueViews[i].setTypeface(bold);
         }
@@ -539,9 +549,14 @@ public class RouterDreamService extends DreamService {
                     // color (green ok / amber warn / red down) regardless
                     // of theme - that carries real operational meaning,
                     // not just decoration. Plain numeric stats use the
-                    // theme's primary text color.
-                    Integer color = statColors.get(key);
-                    valueViews[i].setTextColor(color != null ? color : currentTheme.textPrimary);
+                    // theme's primary text color - except fixedStatColors
+                    // layouts (the "vibrant multi-color" set), whose whole
+                    // design IS a fixed per-stat rainbow baked into the
+                    // XML, so leave those alone entirely.
+                    if (currentLayout == null || !currentLayout.fixedStatColors) {
+                        Integer color = statColors.get(key);
+                        valueViews[i].setTextColor(color != null ? color : currentTheme.textPrimary);
+                    }
                 }
                 if (headline1Value != null) {
                     String v = stats.get(STAT_KEYS[HEADLINE1_INDEX]);

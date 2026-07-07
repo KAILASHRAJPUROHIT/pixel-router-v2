@@ -50,9 +50,27 @@ PASS=$(cat "$CFG" 2>/dev/null | grep "Passphrase" | sed -E 's/.*>([^<]*)<.*/\1/'
 # config was already active) if a softap session is already running -
 # stop-softap first is a harmless no-op if nothing's running, but makes
 # sure a fresh start actually applies $SSID/$PASS either way.
+#
+# -b bridged_2_5 added 2026-07-07: without a -b flag, start-softap's own
+# help text says 2.4GHz is the preferred band - confirmed live that this
+# was exactly why the hotspot had been running 2.4GHz-only the whole
+# time despite the persisted config supporting bridged dual-band.
+# 6GHz was tested too (bridged_5_6) and fails outright - "SAP is
+# disabled", no fallback - this hardware's driver reports zero 6GHz
+# channels for AP mode on this SIM's country code (IN), confirmed via
+# `cmd wifi get-softap-supported-features`/dumpsys capability output,
+# not just a missing config option.
+#
+# Note: even with bridged_2_5 requested, the second (5GHz) radio leg
+# comes up reactively - only once a client actually negotiates it, not
+# immediately at boot - and there's no root/shell-exposed switch found
+# to force it eager (BridgedModeInstanceOpportunisticEnabled isn't in
+# the persisted XML and has no `cmd wifi` toggle). This is still a real
+# improvement over the previous always-2.4-only default though, since
+# it makes 5GHz reachable at all instead of never requested.
 cmd wifi stop-softap >/dev/null 2>&1
 sleep 2
-cmd wifi start-softap "$SSID" wpa2 "$PASS"
+cmd wifi start-softap "$SSID" wpa2 "$PASS" -b bridged_2_5
 
 # Confirmed 2026-07-06: Android regenerates hostapd_wlan2.conf on every
 # start-softap with ieee80211w=1 (PMF/802.11w set to "optional") - this

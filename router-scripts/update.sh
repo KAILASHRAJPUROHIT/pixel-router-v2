@@ -449,6 +449,20 @@ while true; do
   # AOD's label/value regex (which stops at the first "<").
   CUSTOM_MESSAGE_ESC=$(printf '%s' "$CUSTOM_MESSAGE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
 
+  # AKD follower counts: akd_followers_fetch.sh polls AKD's own
+  # always-on analytics API every 5 minutes and caches the last-known
+  # value per platform (a Meta token expiry means Instagram/Facebook
+  # can go stale for days at a time - "--" here just means no
+  # successful fetch has ever landed, not necessarily 0 followers).
+  AKD_CACHE=/data/adb/dashboard/akd_followers.txt
+  AKD_YT="--"; AKD_IG="--"; AKD_FB="--"
+  if [ -f "$AKD_CACHE" ]; then
+    AKD_YT=$(sed -n '1p' "$AKD_CACHE")
+    AKD_IG=$(sed -n '2p' "$AKD_CACHE")
+    AKD_FB=$(sed -n '3p' "$AKD_CACHE")
+  fi
+  AKD_BADGE_TEXT="YT ${AKD_YT} · IG ${AKD_IG} · FB ${AKD_FB}"
+
   # Live CPU/GPU clock, for visibility into aod_power_governor.sh's
   # idle-tier throttling actually taking effect - scaling_cur_freq is the
   # frequency actually in use right now, not the scaling_max_freq ceiling
@@ -504,6 +518,7 @@ while true; do
 <div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
 <div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
 <div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
+<div class="stat"><div class="label">AKD</div><div class="value">${AKD_BADGE_TEXT}</div></div>
 <div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
   <input type="text" name="message" maxlength="200" placeholder="Send a message home..."
@@ -524,6 +539,39 @@ while true; do
   <button type="submit"
     style="background:#3498db; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch AOD</button>
 </form>
+<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Debug</h3>
+<div style="display:flex; flex-wrap:wrap; gap:8px; max-width:680px; margin-bottom:14px;">
+  <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Reboot the router now? This will drop the hotspot for ~1-2 minutes.');">
+    <input type="hidden" name="action" value="reboot">
+    <button type="submit" style="background:#e74c3c; color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:0.85em; font-weight:600;">Reboot Device</button>
+  </form>
+  <form method="POST" action="/cgi-bin/debug_action.cgi">
+    <input type="hidden" name="action" value="restart_aod">
+    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart AOD</button>
+  </form>
+  <form method="POST" action="/cgi-bin/debug_action.cgi">
+    <input type="hidden" name="action" value="restart_dashboard">
+    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Dashboard</button>
+  </form>
+  <form method="POST" action="/cgi-bin/debug_action.cgi">
+    <input type="hidden" name="action" value="restart_failover">
+    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Failover</button>
+  </form>
+  <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Restart the hotspot? Connected devices will briefly drop.');">
+    <input type="hidden" name="action" value="restart_hotspot">
+    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Hotspot</button>
+  </form>
+</div>
+<div style="max-width:680px; margin-bottom:14px;">
+  <textarea id="console-cmd" placeholder="shell command, runs as root..." rows="2"
+    style="width:100%; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:0.9em; font-family:monospace; resize:vertical;"></textarea>
+  <div style="display:flex; gap:8px; margin-top:6px;">
+    <button type="button" id="console-run"
+      style="background:#3498db; color:#000; border:none; border-radius:8px; padding:8px 16px; font-size:0.85em; font-weight:600;">Run</button>
+    <span id="console-status" style="color:#888; font-size:0.8em; align-self:center;"></span>
+  </div>
+  <pre id="console-output" style="background:#0a0a0a; border:1px solid #222; border-radius:8px; padding:10px 14px; margin-top:8px; max-height:280px; overflow:auto; font-size:0.8em; white-space:pre-wrap; word-break:break-word; display:none;"></pre>
+</div>
 <table>
 <tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
 ${ROWS}
@@ -552,6 +600,35 @@ setInterval(function() {
     })
     .catch(function() {});
 }, 1500);
+
+// Debug console: POSTs the typed command to debug_console.cgi and shows
+// whatever it prints (stdout+stderr from a root shell) in the <pre>
+// below. No confirm() here unlike the reboot/hotspot buttons - this is
+// the "I know what I'm typing" path, same trust level as an adb shell.
+document.getElementById('console-run').addEventListener('click', function() {
+  var cmd = document.getElementById('console-cmd').value;
+  var statusEl = document.getElementById('console-status');
+  var outputEl = document.getElementById('console-output');
+  if (!cmd.trim()) return;
+  statusEl.textContent = 'running...';
+  outputEl.style.display = 'none';
+  fetch('/cgi-bin/debug_console.cgi', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'cmd=' + encodeURIComponent(cmd)
+  })
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      statusEl.textContent = '';
+      outputEl.textContent = t || '(no output)';
+      outputEl.style.display = 'block';
+    })
+    .catch(function(e) {
+      statusEl.textContent = '';
+      outputEl.textContent = 'Request failed: ' + e;
+      outputEl.style.display = 'block';
+    });
+});
 </script>
 </body>
 </html>

@@ -136,6 +136,7 @@ public class RouterDreamService extends DreamService {
     // borrowed family-member hotspot (failover_monitor.sh) - present in
     // every layout, same lightweight-badge pattern as perfBadge/healthBadge.
     private TextView netTypeBadge;
+    private TextView akdBadge;
 
     // Custom message: dashboard-typed text that takes over the entire
     // screen for 5 minutes (server-enforced expiry, see update.sh/
@@ -338,6 +339,7 @@ public class RouterDreamService extends DreamService {
         healthBadge = findViewById(R.id.health_badge);
         perfBadge = findViewById(R.id.perf_badge);
         netTypeBadge = findViewById(R.id.net_type_badge);
+        akdBadge = findViewById(R.id.akd_badge);
 
         for (int i = 0; i < ROW_IDS.length; i++) {
             View row = findViewById(ROW_IDS[i]);
@@ -383,6 +385,7 @@ public class RouterDreamService extends DreamService {
         if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
         if (perfBadge != null) perfBadge.setTextColor(theme.textMuted);
         if (netTypeBadge != null) netTypeBadge.setTextColor(theme.textMuted);
+        if (akdBadge != null) akdBadge.setTextColor(theme.textMuted);
 
         for (int i = 0; i < labelViews.length; i++) {
             labelViews[i].setTextColor(theme.textMuted);
@@ -562,6 +565,10 @@ public class RouterDreamService extends DreamService {
                         Integer color = statColors.get("Internet Type");
                         netTypeBadge.setTextColor(color != null ? color : currentTheme.textMuted);
                     }
+                }
+                if (akdBadge != null) {
+                    String akd = stats.get("AKD");
+                    if (akd != null) akdBadge.setText(akd);
                 }
                 if (messageOverlay != null) {
                     String customMessage = stats.get("Custom Message");

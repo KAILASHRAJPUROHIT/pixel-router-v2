@@ -60,6 +60,14 @@
             android:textAllCaps="true"
             android:text="--" />
 
+        <TextView
+            android:id="@+id/akd_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textAllCaps="true"
+            android:text="--" />
+
         <!-- perf_badge/net_type_badge intentionally omitted here - this
              layout's 10 stat bubbles are positioned at fixed absolute
              offsets around the center clock (row0 starts at just 88dp

@@ -3,6 +3,7 @@
 **/local_secrets.py
 **/*.pem
 **/failover.properties
+**/akd_secrets.properties
 
 # --- Android (aod/) ---
 aod/local.properties

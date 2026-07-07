@@ -107,6 +107,14 @@
         android:text="--" />
 
     <TextView
+        android:id="@+id/akd_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="9sp"
+        android:alpha="0.5"
+        android:text="--" />
+
+    <TextView
         android:id="@+id/panchang"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

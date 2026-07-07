@@ -71,6 +71,17 @@
             android:layout_marginTop="4dp"
             android:text="--" />
 
+        <TextView
+            android:id="@+id/akd_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="180dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp"
+            android:text="--" />
+
         <!-- maxWidth caps how far these two variable-length lines can
              grow toward the top-left corner - the clock is large enough
              (62sp) that unconstrained long panchang/muhurat text could

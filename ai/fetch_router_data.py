@@ -32,9 +32,12 @@ def _get(url, timeout=10):
 
 
 def fetch_dashboard_html():
-    """Try the tunnel URL first (works from anywhere), then the LAN URL."""
+    """Try the stable DuckDNS/Caddy URL first (works from anywhere, fixed
+    hostname), then the LAN URL, then the quick-tunnel URL as a last
+    resort (rotates on every cloudflared restart, so it's the least
+    reliable of the three as a default)."""
     errors = []
-    for url in (config.DASHBOARD_URL_TUNNEL, config.DASHBOARD_URL_LAN):
+    for url in (config.DASHBOARD_URL_STABLE, config.DASHBOARD_URL_LAN, config.DASHBOARD_URL_TUNNEL):
         if not url:
             continue
         try:

@@ -743,6 +743,14 @@ while true; do
       <input type="hidden" name="action" value="restart_hotspot">
       <button type="submit" class="btn-neutral">Restart Hotspot</button>
     </form>
+    <form method="POST" action="/cgi-bin/pc_command.cgi">
+      <input type="hidden" name="action" value="restart_rustdesk">
+      <button type="submit" class="btn-neutral">Restart RustDesk (PC)</button>
+    </form>
+    <form method="POST" action="/cgi-bin/pc_command.cgi" onsubmit="return confirm('Restart the PC? It queues a reboot with a 60s cancelable grace period if someone is at the keyboard - picked up next time pc_command_watcher.py polls (within a minute or two).');">
+      <input type="hidden" name="action" value="restart_pc">
+      <button type="submit" class="btn-danger">Restart PC</button>
+    </form>
   </div>
   <textarea id="console-cmd" placeholder="shell command, runs as root..." rows="2"></textarea>
   <div style="display:flex; gap:8px; margin-top:6px; align-items:center;">

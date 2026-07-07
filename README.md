@@ -25,5 +25,6 @@ Real credentials/secrets are **not** committed to this repo - copy each `.exampl
 - `ai/local_secrets.py` (from `.example`) — same credentials, for the AI monitoring layer.
 - `router-scripts/failover.properties.example` — family members' phone numbers, hotspot SSID/password/MAC/Bluetooth MAC for the failover system.
 - `router-scripts/akd_secrets.properties.example` — API URL/key for the AKD follower-count integration.
+- `router-scripts/meta_secrets.properties.example` — optional, direct Meta Graph API token for Instagram/Facebook numbers (bypasses AKD's own relay).
 
 See each subproject's own README for further details on running/building/deploying.

@@ -89,5 +89,14 @@ check_one "failover.properties" "$TEMPLATE_DIR/failover.properties.example" "$ST
 check_one "akd_secrets.properties" "$TEMPLATE_DIR/akd_secrets.properties.example" "$STATE_DIR/akd_secrets.properties"
 check_one "dashboard_auth.properties" "$TEMPLATE_DIR/dashboard.properties.example" "/data/data/com.router.aod/files/dashboard_auth.properties"
 
+# Optional - akd_followers_fetch.sh falls back to AKD's own relay for
+# IG/FB when this isn't present, so a missing file here isn't an error,
+# only an incomplete/placeholder-filled one is worth flagging.
+if [ -f "$STATE_DIR/meta_secrets.properties" ]; then
+  check_one "meta_secrets.properties" "$TEMPLATE_DIR/meta_secrets.properties.example" "$STATE_DIR/meta_secrets.properties"
+else
+  log "SKIP: meta_secrets.properties not present (optional - AKD relay used for IG/FB instead)"
+fi
+
 mv "$STATUS_FILE.tmp" "$STATUS_FILE"
 log "=== config validation done ==="

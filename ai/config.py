@@ -20,6 +20,11 @@ DASHBOARD_URL_TUNNEL = os.environ.get(
     "ROUTER_TUNNEL_URL", "https://falling-managed-hottest-contained.trycloudflare.com"
 )
 DASHBOARD_URL_LAN = os.environ.get("ROUTER_LAN_URL", "http://192.168.43.1:8080")
+# The WireGuard/Caddy/DuckDNS path - a fixed hostname, unlike the
+# quick-tunnel URL above which rotates every time cloudflared restarts
+# (confirmed stale as a hardcoded default more than once already) and
+# has its own occasional connection hiccups. Prefer this one first.
+DASHBOARD_URL_STABLE = os.environ.get("ROUTER_STABLE_URL", "https://antrivarouter.duckdns.org")
 
 # Credentials come from local_secrets.py (gitignored, not committed) -
 # see local_secrets.py.example. Deliberately not named "secrets.py" -

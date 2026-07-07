@@ -398,7 +398,7 @@ while true; do
   # must stay in the exact order of AodTheme.java's ALL[] array (its
   # index is what theme_index actually stores), manually kept in sync
   # since there's no way to query the array's names from shell.
-  AOD_THEME_NAMES="Neon cyberpunk|Glass frost|Retro CRT terminal|Luxury gold|Vaporwave sunset|E-ink newspaper|Holographic|Nature organic"
+  AOD_THEME_NAMES="Neon cyberpunk|Glass frost|Retro CRT terminal|Luxury gold|Vaporwave sunset|E-ink newspaper|Holographic|Nature organic|True Black (OLED)"
   CURRENT_THEME_IDX=$(sed -n 's/.*theme_index" value="\([0-9]*\)".*/\1/p' /data/data/com.router.aod/shared_prefs/aod_prefs.xml 2>/dev/null)
   [ -z "$CURRENT_THEME_IDX" ] && CURRENT_THEME_IDX=0
   AOD_THEME_OPTIONS=$(echo "$AOD_THEME_NAMES" | awk -v cur="$CURRENT_THEME_IDX" -F'|' '{

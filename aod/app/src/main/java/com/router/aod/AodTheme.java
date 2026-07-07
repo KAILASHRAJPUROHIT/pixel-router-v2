@@ -75,5 +75,20 @@ public class AodTheme {
                     Color.parseColor("#a9c9b8"), Color.parseColor("#f4ecd8"),
                     Color.parseColor("#f4ecd8"), Color.parseColor("#8fd4b8"),
                     null),
+            // True Black (OLED) - added 2026-07-07. Background AND panel
+            // are both pure #000000, not just "dark" like every other
+            // theme here - on an actual OLED panel, a pixel driven to
+            // exactly (0,0,0) is fully off (no current through that
+            // subpixel), which is the whole point of a real AOD: only
+            // the pixels under actual text/icons draw power, everything
+            // else is a genuinely dead black, not a backlit dark gray.
+            // Every other theme's background (e.g. Neon cyberpunk's
+            // #050014, Nature organic's #0b3d2e) is non-zero and would
+            // keep the whole panel lit at low brightness instead.
+            new AodTheme("True Black (OLED)",
+                    Color.parseColor("#000000"), Color.parseColor("#000000"),
+                    Color.parseColor("#707070"), Color.parseColor("#ffffff"),
+                    Color.parseColor("#ffffff"), Color.parseColor("#bbbbbb"),
+                    null),
     };
 }

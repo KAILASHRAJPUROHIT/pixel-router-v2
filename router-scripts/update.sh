@@ -95,11 +95,64 @@ detect_ap_if() {
   fi
 }
 
+# Per-client 2.4GHz/5GHz band, added 2026-07-08 once bridged dual-band
+# was working (see hotspot_on_boot.sh) and it became clear clients roam
+# between the two radios on their own - a device shown "on 5GHz" a
+# minute ago may have already dropped back to 2.4GHz by the next
+# dashboard refresh, so this needs to be genuinely live every cycle,
+# not a one-time lookup.
+#
+# `dumpsys wifi` has no per-instance client MAC list in its static
+# snapshot (only a live one-off event log when softap first starts, not
+# queryable later) and `ip neigh show dev wlan2/wlan3` returns nothing
+# (L3 neighbor entries live on the bridge interface, not its enslaved
+# physical ports). What does work: the bridge's own MAC forwarding
+# table (`brctl showmacs`) tags every learned MAC with which physical
+# port it arrived on, including each radio's own "is local" bssid entry
+# - cross-referencing that against dumpsys wifi's bssid->frequency
+# mapping (the only place that ties an instance name to its live
+# frequency) gives a real port->band, then MAC->band.
+BAND_BY_BSSID_FILE="$STATE_DIR/band_by_bssid.txt"
+PORT_BAND_FILE="$STATE_DIR/port_band.txt"
+CLIENT_BAND_FILE="$STATE_DIR/client_bands.txt"
+
+build_client_band_map() {
+  > "$CLIENT_BAND_FILE"
+  if ! ip addr show ap_br_wlan2 >/dev/null 2>&1; then
+    return
+  fi
+  SAPINFO=$(dumpsys wifi 2>&1 | grep -m1 "mCurrentSoftApInfoMap")
+  [ -z "$SAPINFO" ] && return
+
+  echo "$SAPINFO" | grep -oE "frequency= [0-9]+,bssid=[0-9a-f:]+" | \
+    awk -F'[ ,=]+' '{freq=$2; bssid=$4; band=(freq<3000)?"2.4GHz":"5GHz"; print bssid, band}' > "$BAND_BY_BSSID_FILE"
+
+  BRMACS_FILE="$STATE_DIR/brmacs.txt"
+  $BUSYBOX brctl showmacs ap_br_wlan2 2>/dev/null > "$BRMACS_FILE"
+
+  awk 'FNR==NR { bandof[$1]=$2; next } $3=="yes" { print $1, bandof[$2] }' \
+    "$BAND_BY_BSSID_FILE" "$BRMACS_FILE" > "$PORT_BAND_FILE"
+
+  awk 'FNR==NR { bandofport[$1]=$2; next } $3=="no" { print $2"="bandofport[$1] }' \
+    "$PORT_BAND_FILE" "$BRMACS_FILE" > "$CLIENT_BAND_FILE"
+}
+
+lookup_band() {
+  # $1 = MAC -> prints "2.4GHz"/"5GHz" if bridged and known, "--" if the
+  # device hasn't been seen on either radio's forwarding table yet
+  # (just associated, or not currently bridged - a single-band fallback
+  # where AP_IF is plain "wlan2" has no ambiguity to resolve anyway).
+  MAC_LC=$(echo "$1" | tr 'A-Z' 'a-z')
+  BAND=$(grep -i "^${MAC_LC}=" "$CLIENT_BAND_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+  [ -n "$BAND" ] && echo "$BAND" || echo "--"
+}
+
 
 PREV_SUM=$(sum_all_rmnet_bytes)
 
 while true; do
   AP_IF=$(detect_ap_if)
+  build_client_band_map
   WAN_IF=$(detect_wan_if)
   [ -z "$WAN_IF" ] && WAN_IF=rmnet1
 
@@ -218,10 +271,11 @@ while true; do
       ensure_device_accounting "$dip"
       dtotal=$(update_device_total "$dip" "$dmac")
       dname=$(lookup_device_name "$dmac")
+      dband=$(lookup_band "$dmac")
       # HTML-escape before embedding in the input's value attribute -
       # dname can come from user-submitted rename_device.cgi text.
       dname_esc=$(printf '%s' "$dname" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
-      printf '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td><td>' "$dname" "$dip" "$dmac" "$dtotal"
+      printf '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td><td>' "$dname" "$dip" "$dmac" "$dband" "$dtotal"
       printf '<form method="POST" action="/cgi-bin/rename_device.cgi" style="display:flex; gap:4px;">'
       printf '<input type="hidden" name="mac" value="%s">' "$dmac"
       printf '<input type="text" name="name" value="%s" maxlength="60" style="width:120px; padding:4px 6px; font-size:0.85em; border-radius:6px;">' "$dname_esc"
@@ -241,7 +295,7 @@ while true; do
       printf '</td></tr>\n'
     done)
   else
-    ROWS="<tr><td colspan=6>No devices connected</td></tr>"
+    ROWS="<tr><td colspan=7>No devices connected</td></tr>"
   fi
 
   # Recent SMS: mirrors the last N genuinely-received messages (type=1,
@@ -710,7 +764,7 @@ while true; do
 <div class="card full" style="margin-bottom:var(--gap);">
   <div class="card-title"><span class="accent-bar"></span>Connected Devices</div>
   <table>
-  <tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
+  <tr><th>Device</th><th>IP</th><th>MAC</th><th>Band</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
   ${ROWS}
   </table>
 </div>

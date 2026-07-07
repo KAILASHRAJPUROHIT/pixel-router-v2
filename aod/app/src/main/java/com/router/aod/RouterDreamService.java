@@ -120,6 +120,10 @@ public class RouterDreamService extends DreamService {
 
     private View bgRoot, panel1, panel2, panel3, railBg, divider1, panchangCard, weatherCard;
     private final View[] rowViews = new View[STAT_KEYS.length];
+    // Small leading accent-color dot used by aod_card_bold.xml (the
+    // OnePlus Accent/Grid/Pro/Flux/Horizon "clean & bold" style) -
+    // nullable per row since only some layouts include one.
+    private final View[] accentDotViews = new View[STAT_KEYS.length];
     private TextView clockView, dateView, panchangView;
     private TextView panchangHeaderView, panchangTithiView, panchangNakshatraView;
     private TextView muhuratBadge;
@@ -346,6 +350,7 @@ public class RouterDreamService extends DreamService {
             rowViews[i] = row;
             labelViews[i] = row.findViewById(R.id.stat_label);
             valueViews[i] = row.findViewById(R.id.stat_value);
+            accentDotViews[i] = row.findViewById(R.id.accent_dot);
             labelViews[i].setText(STAT_KEYS[i]);
             valueViews[i].setText("--");
         }
@@ -379,6 +384,9 @@ public class RouterDreamService extends DreamService {
 
         for (View row : rowViews) {
             tintPanelIfPresent(row, theme.panel);
+        }
+        for (View dot : accentDotViews) {
+            tintPanelIfPresent(dot, theme.accent);
         }
         tintPanelIfPresent(panchangCard, theme.panel);
         tintPanelIfPresent(weatherCard, theme.panel);

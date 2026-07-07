@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Clean single-line "label ..... value" row with a thin divider
+     below - for the minimal/dashboard-style layouts (Tesla, Apple Watch,
+     Japanese Minimal, Nothing OS Matrix). No border box, just spacing
+     and a hairline, the opposite instinct from aod_row_terminal. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="8dp">
+
+    <TextView
+        android:id="@+id/stat_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textAllCaps="true"
+        android:letterSpacing="0.06"
+        android:alpha="0.6"
+        android:text="Label" />
+
+    <TextView
+        android:id="@+id/stat_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginTop="1dp"
+        android:text="--" />
+
+</LinearLayout>

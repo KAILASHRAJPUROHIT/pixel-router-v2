@@ -531,6 +531,23 @@ while true; do
     TUNNEL_LABEL="DEAD - reconnect WireGuard on the phone"; TUNNEL_COLOR="#e74c3c"
   fi
 
+  # Last speed test result (speedtest.cgi writes this on demand, not on
+  # a timer - a real throughput test costs real cellular data, so it
+  # only runs when someone clicks the button). Rendered here so the
+  # card shows the last known reading immediately on page load instead
+  # of being blank until clicked again.
+  SPEEDTEST_FILE="$STATE_DIR/speedtest_result.json"
+  if [ -f "$SPEEDTEST_FILE" ]; then
+    ST_DOWN=$(sed -n 's/.*"down":\([0-9.]*\).*/\1/p' "$SPEEDTEST_FILE")
+    ST_UP=$(sed -n 's/.*"up":\([0-9.]*\).*/\1/p' "$SPEEDTEST_FILE")
+    ST_PING=$(sed -n 's/.*"ping":"\([^"]*\)".*/\1/p' "$SPEEDTEST_FILE")
+    ST_TS=$(sed -n 's/.*"ts":\([0-9]*\).*/\1/p' "$SPEEDTEST_FILE")
+    ST_AGE_MIN=$(awk -v ts="$ST_TS" -v now="$(date +%s)" 'BEGIN{printf "%.0f", (now-ts)/60}')
+    SPEEDTEST_SUMMARY="Down: ${ST_DOWN} Mbps  /  Up: ${ST_UP} Mbps  /  Ping: ${ST_PING} ms  (tested ${ST_AGE_MIN}m ago)"
+  else
+    SPEEDTEST_SUMMARY="Not run yet"
+  fi
+
   # Live CPU/GPU clock, for visibility into aod_power_governor.sh's
   # idle-tier throttling actually taking effect - scaling_cur_freq is the
   # frequency actually in use right now, not the scaling_max_freq ceiling
@@ -703,6 +720,15 @@ while true; do
   </div>
 
   <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>Speed Test</div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button type="button" id="speedtest-run" class="btn-primary">Run Speed Test</button>
+      <span id="speedtest-status" style="color:var(--muted); font-size:0.85em;"></span>
+    </div>
+    <div id="speedtest-result" style="margin-top:10px; font-size:0.95em;">${SPEEDTEST_SUMMARY}</div>
+  </div>
+
+  <div class="card">
     <div class="card-title"><span class="accent-bar"></span>AKD</div>
     <div class="stat-grid">
       <div class="stat"><div class="label">AKD</div><div class="value" style="font-size:1.05em;">${AKD_BADGE_TEXT}</div></div>
@@ -862,6 +888,30 @@ document.getElementById('console-run').addEventListener('click', function() {
       statusEl.textContent = '';
       outputEl.textContent = 'Request failed: ' + e;
       outputEl.style.display = 'block';
+    });
+});
+
+// Speed test: runs on the router itself (see speedtest.cgi's own
+// comments for why it's not a browser-side test) - a real download +
+// upload against Cloudflare's public test endpoints, so this takes a
+// few seconds, not instant.
+document.getElementById('speedtest-run').addEventListener('click', function() {
+  var statusEl = document.getElementById('speedtest-status');
+  var resultEl = document.getElementById('speedtest-result');
+  var btn = document.getElementById('speedtest-run');
+  btn.disabled = true;
+  statusEl.textContent = 'testing... (~10s)';
+  fetch('/cgi-bin/speedtest.cgi', {method: 'POST'})
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      statusEl.textContent = '';
+      resultEl.textContent = t || 'No result';
+      btn.disabled = false;
+    })
+    .catch(function(e) {
+      statusEl.textContent = '';
+      resultEl.textContent = 'Request failed: ' + e;
+      btn.disabled = false;
     });
 });
 

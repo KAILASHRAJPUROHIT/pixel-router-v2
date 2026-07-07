@@ -102,6 +102,30 @@ sleep 5
 for HOSTAPD_CONF in /data/vendor/wifi/hostapd/hostapd_wlan2.conf /data/vendor/wifi/hostapd/hostapd_wlan3.conf; do
   [ -f "$HOSTAPD_CONF" ] && sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
 done
+
+# 5GHz-lock for devices that are always physically next to the router
+# (2026-07-08) - denying them on the 2.4GHz radio specifically (leaving
+# wlan3/5GHz untouched) rather than blocking them outright, so their OS
+# roams to 5GHz on its own since the same SSID is broadcasting there
+# too. deny_2ghz.txt is rewritten fresh on every boot (not hand-edited
+# on-device) so this list only needs updating here. Same regenerate-
+# every-start problem as the PMF fix above - macaddr_acl/deny_mac_file
+# get wiped from hostapd_wlan2.conf on every start-softap, so this
+# re-adds them every time, not just once. Verified live: a SIGHUP
+# reload after appending picked up the newly-added ACL immediately,
+# deauthing an already-connected laptop off 2.4GHz and it re-associated
+# on 5GHz within seconds, no service restart needed.
+DENY_2GHZ_FILE=/data/vendor/wifi/hostapd/deny_2ghz.txt
+{
+  echo "d4:e9:8a:42:b6:89"  # Laptop
+  echo "1c:d1:d7:b9:36:f2"  # Living Room TV
+} > "$DENY_2GHZ_FILE"
+chmod 660 "$DENY_2GHZ_FILE"
+chown wifi:wifi "$DENY_2GHZ_FILE" 2>/dev/null
+if [ -f /data/vendor/wifi/hostapd/hostapd_wlan2.conf ] && ! grep -q macaddr_acl /data/vendor/wifi/hostapd/hostapd_wlan2.conf; then
+  printf '\nmacaddr_acl=1\ndeny_mac_file=%s\n' "$DENY_2GHZ_FILE" >> /data/vendor/wifi/hostapd/hostapd_wlan2.conf
+fi
+
 HOSTAPD_PID=$(pgrep -x hostapd)
 [ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
 

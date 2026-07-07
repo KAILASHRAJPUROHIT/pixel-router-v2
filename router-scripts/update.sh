@@ -566,7 +566,6 @@ while true; do
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="10">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -671,6 +670,12 @@ while true; do
 <body>
 <div class="page">
 
+<!-- live-data wraps everything that refreshes periodically via JS
+     (see the poll loop near the bottom) - the Debug/Admin card below
+     is deliberately OUTSIDE this wrapper so an in-progress console
+     command/output or a half-typed shell command in the textarea never
+     gets silently wiped by a background refresh. -->
+<div id="live-data">
 <div class="header">
   <div>
     <div class="clock">${NOW_TIME}</div>
@@ -799,6 +804,8 @@ while true; do
   <div class="card-title"><span class="accent-bar"></span>Recent SMS</div>
   ${SMS_ROWS}
 </div>
+</div>
+<!-- /live-data -->
 
 <div class="card full debug-card">
   <div class="card-title"><span class="accent-bar" style="background:#e5484d;"></span>Debug / Admin</div>
@@ -842,6 +849,30 @@ while true; do
 
 </div>
 <script>
+// Refreshes all the data cards in place instead of the old
+// <meta http-equiv="refresh" content="10"> full page reload - that tag
+// caused a visible flash and reset scroll position/in-progress typing
+// every 10s (confirmed reported 2026-07-08), even though the speed.json
+// poller below was already written specifically to avoid exactly that
+// for Down/Up - the meta tag undid it for everything else on the page.
+// Fetches the freshly-regenerated page, then swaps in only the
+// #live-data container's contents - the Debug/Admin card (console
+// textarea/output, one-off action buttons) lives outside that
+// container by design, so a background refresh can never wipe
+// something being typed into the shell command box.
+setInterval(function() {
+  fetch('/index.html?t=' + Date.now(), {cache: 'no-store'})
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('live-data');
+      var current = document.getElementById('live-data');
+      if (fresh && current) {
+        current.innerHTML = fresh.innerHTML;
+      }
+    })
+    .catch(function() {});
+}, 10000);
+
 // Polls speed.json (written every 2s by speed_monitor.sh, a dedicated
 // fast-sampling loop separate from this page's own ~10-15s regeneration
 // cycle) so Down/Up feels live without a full page reload interrupting
@@ -895,10 +926,18 @@ document.getElementById('console-run').addEventListener('click', function() {
 // comments for why it's not a browser-side test) - a real download +
 // upload against Cloudflare's public test endpoints, so this takes a
 // few seconds, not instant.
-document.getElementById('speedtest-run').addEventListener('click', function() {
+//
+// Delegated on document rather than bound directly to the button -
+// the button lives inside #live-data, which the periodic refresh above
+// replaces wholesale every 10s (fresh DOM nodes, no listeners attached
+// to them). A direct addEventListener here would silently stop working
+// the moment the first background refresh fires; listening on a node
+// that's never replaced is what survives that.
+document.addEventListener('click', function(e) {
+  if (e.target.id !== 'speedtest-run') return;
   var statusEl = document.getElementById('speedtest-status');
   var resultEl = document.getElementById('speedtest-result');
-  var btn = document.getElementById('speedtest-run');
+  var btn = e.target;
   btn.disabled = true;
   statusEl.textContent = 'testing... (~10s)';
   fetch('/cgi-bin/speedtest.cgi', {method: 'POST'})

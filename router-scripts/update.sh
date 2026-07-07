@@ -261,8 +261,8 @@ while true; do
       printf '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s GB</td><td>' "$dname" "$dip" "$dmac" "$dtotal"
       printf '<form method="POST" action="/cgi-bin/rename_device.cgi" style="display:flex; gap:4px;">'
       printf '<input type="hidden" name="mac" value="%s">' "$dmac"
-      printf '<input type="text" name="name" value="%s" maxlength="60" style="width:120px; background:#151515; color:#eee; border:1px solid #333; border-radius:6px; padding:4px 6px; font-size:0.85em;">' "$dname_esc"
-      printf '<button type="submit" style="background:#333; color:#eee; border:none; border-radius:6px; padding:4px 10px; font-size:0.8em;">Save</button>'
+      printf '<input type="text" name="name" value="%s" maxlength="60" style="width:120px; padding:4px 6px; font-size:0.85em; border-radius:6px;">' "$dname_esc"
+      printf '<button type="submit" class="btn-neutral" style="padding:4px 10px; font-size:0.8em; border-radius:6px;">Save</button>'
       printf '</form></td><td>'
       if [ -f "$BLOCKLIST_FILE" ] && grep -qi "^${dmac}$" "$BLOCKLIST_FILE"; then
         printf '<form method="POST" action="/cgi-bin/toggle_block.cgi">'
@@ -356,7 +356,7 @@ while true; do
       SAFE_ADDR=$(printf '%s' "$saddr" | tr -c 'A-Za-z0-9' '_')
       ADDR_FILE="$SMS_TMPDIR/$SAFE_ADDR.html"
       [ -f "$ADDR_FILE" ] || printf '%s\n' "$saddr_esc" >> "$ORDER_FILE"
-      printf '<div style="background:#151515; border-radius:8px; padding:10px 14px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8em;"><span>%s</span></div><div style="margin-top:4px; font-size:0.9em; word-break:break-word;">%s</div></div>\n' "$stime" "$sbody_esc" >> "$ADDR_FILE"
+      printf '<div class="sms-item"><div class="meta"><span>%s</span></div><div class="body">%s</div></div>\n' "$stime" "$sbody_esc" >> "$ADDR_FILE"
     done
   SMS_ROWS=""
   while IFS= read -r sender_esc; do
@@ -364,7 +364,7 @@ while true; do
     SAFE_ADDR=$(printf '%s' "$sender_esc" | tr -c 'A-Za-z0-9' '_')
     ADDR_FILE="$SMS_TMPDIR/$SAFE_ADDR.html"
     [ -f "$ADDR_FILE" ] || continue
-    SMS_ROWS="${SMS_ROWS}<h4 style=\"margin:14px 0 6px; color:#ccc; font-size:0.95em;\">${sender_esc}</h4>$(cat "$ADDR_FILE")"
+    SMS_ROWS="${SMS_ROWS}<h4 class=\"sender-title\">${sender_esc}</h4>$(cat "$ADDR_FILE")"
   done < "$ORDER_FILE"
   rm -rf "$SMS_TMPDIR"
   [ -z "$SMS_ROWS" ] && SMS_ROWS='<div style="color:#888;">No messages</div>'
@@ -538,126 +538,238 @@ while true; do
 <meta http-equiv="Expires" content="0">
 <title>Router Status</title>
 <style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #14141b;
+    --card-border: #24242e;
+    --text: #f0f0f5;
+    --muted: #8a8a96;
+    --accent: #5b8def;
+    --radius: 16px;
+    --gap: 16px;
+  }
   * { box-sizing:border-box; }
-  body { font-family: -apple-system, sans-serif; background:#000; color:#eee; padding:24px; margin:0; }
-  .clock { font-size:4.2em; font-weight:200; line-height:1; letter-spacing:-2px; }
-  .date { color:#888; font-size:1em; margin-bottom:20px; }
-  .stat { display:inline-block; background:#151515; border-radius:12px; padding:14px 22px; margin:5px; min-width:110px; }
-  .stat .label { color:#888; font-size:0.75em; text-transform:uppercase; letter-spacing:0.05em; }
-  .stat .value { font-size:1.7em; font-weight:600; margin-top:2px; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  /* Header bar: clock/date on the left, quick-glance status pills on
+     the right - the "hero" strip every SaaS dashboard opens with. */
+  .header {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--card-border);
+  }
+  .clock { font-size: 3.4em; font-weight: 200; line-height: 1; letter-spacing: -1px; }
+  .date { color: var(--muted); font-size: 0.95em; margin-top: 4px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 999px; padding: 7px 14px; font-size: 0.82em; font-weight: 600; white-space: nowrap;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--muted)); flex-shrink: 0; }
+  .pill .lbl { color: var(--muted); font-weight: 400; }
+
+  /* Card grid: every section (Network, Device Health, AOD Controls,
+     Devices, SMS, Debug) is its own titled card, not a flat wall of
+     stat boxes - the actual "cluttered" problem being fixed here. */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }
+  .card {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card-title {
+    color: var(--muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .accent-bar { width: 3px; height: 12px; background: var(--accent); border-radius: 2px; display: inline-block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 14px; }
+  .stat .label { color: var(--muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .value { font-size: 1.4em; font-weight: 600; margin-top: 3px; line-height: 1.2; }
   .stat .value.colored { color: var(--c); }
-  table { border-collapse:collapse; margin-top:18px; width:100%; max-width:780px; }
-  td, th { text-align:left; padding:6px 10px; border-bottom:1px solid #222; font-size:0.85em; }
-  th { color:#888; font-weight:normal; }
+
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--card-border); font-size: 0.85em; }
+  th { color: var(--muted); font-weight: 500; font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+
+  input, select, textarea, button {
+    font-family: inherit; font-size: 0.9em; border-radius: 10px; border: 1px solid var(--card-border);
+    background: #1a1a22; color: var(--text); padding: 10px 14px;
+  }
+  button { border: none; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-neutral { background: #1e1e28; color: var(--text); border: 1px solid var(--card-border); }
+  .btn-danger { background: #e5484d; color: #fff; }
+  .btn-purple { background: #9b59b6; color: #fff; }
+  .btn-teal { background: #16a085; color: #fff; }
+  .form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-row select, .form-row input:not([type=number]) { flex: 1; min-width: 140px; }
+
+  .sms-item { background: #1a1a22; border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; }
+  .sms-item .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.8em; }
+  .sms-item .body { margin-top: 4px; font-size: 0.9em; word-break: break-word; }
+  .sender-title { margin: 14px 0 6px; color: #ccc; font-size: 0.95em; }
+
+  .debug-card { border-color: #3a2020; }
+  .debug-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  #console-cmd { width: 100%; font-family: monospace; resize: vertical; }
+  #console-output { background: #0a0a0f; border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px; margin-top: 8px; max-height: 280px; overflow: auto; font-size: 0.8em; white-space: pre-wrap; word-break: break-word; display: none; }
+  #aod-preview-img { width: 100%; border-radius: 12px; border: 1px solid var(--card-border); display: block; background: #0a0a0f; }
+  #aod-preview-fallback { display: none; color: var(--muted); font-size: 0.85em; padding: 20px; text-align: center; border: 1px dashed var(--card-border); border-radius: 12px; }
 </style>
 </head>
 <body>
-<div class="clock">${NOW_TIME}</div>
-<div class="date">${NOW_DATE}</div>
-<div class="stat"><div class="label">Down</div><div class="value" id="speed-down">${DOWN_MBPS}</div></div>
-<div class="stat"><div class="label">Up</div><div class="value" id="speed-up">${UP_MBPS}</div></div>
-<div class="stat"><div class="label">Devices</div><div class="value">${CLIENT_COUNT}</div></div>
-<div class="stat"><div class="label">Total Used</div><div class="value">${TOTAL_GB} GB</div></div>
-<div class="stat"><div class="label">Battery</div><div class="value">${BATT_LEVEL}%</div></div>
-<div class="stat"><div class="label">Thermal</div><div class="value colored" style="--c:${THERMAL_COLOR}">${THERMAL_LABEL}</div></div>
-<div class="stat"><div class="label">Skin Temp</div><div class="value">${SKIN_TEMP}&deg;C</div></div>
-<div class="stat"><div class="label">SMS Fwd</div><div class="value colored" style="--c:${FWD_COLOR}">${FWD_LABEL}</div></div>
-<div class="stat"><div class="label">Internet</div><div class="value colored" style="--c:${NET_COLOR}">${NET_LABEL}</div></div>
-<div class="stat"><div class="label">Signal</div><div class="value colored" style="--c:${SIGNAL_COLOR}">${SIGNAL_LABEL}</div></div>
-<div class="stat"><div class="label">Health</div><div class="value colored" style="--c:${HEALTH_COLOR}">${HEALTH_LABEL}</div></div>
-<div class="stat"><div class="label">AOD Status</div><div class="value colored" style="--c:${AOD_COLOR}">${AOD_LABEL}</div></div>
-<div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
-<div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
-<div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
-<div class="stat"><div class="label">Cellular Cycle</div><div class="value colored" style="--c:${QUOTA_COLOR}">${QUOTA_LABEL}</div></div>
-<div class="stat"><div class="label">WG Tunnel</div><div class="value colored" style="--c:${TUNNEL_COLOR}">${TUNNEL_LABEL}</div></div>
-<div class="stat"><div class="label">AKD</div><div class="value">${AKD_BADGE_TEXT}</div></div>
-<div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
-<form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
-  <input type="text" name="message" maxlength="200" placeholder="Send a message home..."
-    style="width:100%; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
-  <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
-    <input type="number" name="duration_min" value="5" min="1" max="1440"
-      style="width:80px; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 10px; font-size:1em;">
-    <span style="color:#888; font-size:0.85em;">minutes</span>
-    <button type="submit"
-      style="margin-left:auto; background:#2ecc71; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Show on AOD</button>
+<div class="page">
+
+<div class="header">
+  <div>
+    <div class="clock">${NOW_TIME}</div>
+    <div class="date">${NOW_DATE}</div>
   </div>
-</form>
-<form method="POST" action="/cgi-bin/set_aod_layout.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px;">
-  <select name="layout"
-    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
-    ${AOD_LAYOUT_OPTIONS}
-  </select>
-  <button type="submit"
-    style="background:#3498db; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch AOD</button>
-</form>
-<form method="POST" action="/cgi-bin/set_aod_theme.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px;">
-  <select name="theme"
-    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
-    ${AOD_THEME_OPTIONS}
-  </select>
-  <button type="submit"
-    style="background:#9b59b6; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch Color</button>
-</form>
-<form method="POST" action="/cgi-bin/set_billing_day.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px; align-items:center;">
-  <span style="color:#888; font-size:0.85em; white-space:nowrap;">Billing cycle day</span>
-  <select name="day"
-    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
-    ${BILLING_DAY_OPTIONS}
-  </select>
-  <button type="submit"
-    style="background:#16a085; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Set</button>
-</form>
-<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">AOD Preview</h3>
-<div style="max-width:320px; margin-bottom:14px;">
-  <img id="aod-preview-img" src="/aod_preview.png" style="width:100%; border-radius:12px; border:1px solid #333; display:block; background:#0a0a0a;"
-    onerror="this.style.display='none'; document.getElementById('aod-preview-fallback').style.display='block';">
-  <div id="aod-preview-fallback" style="display:none; color:#888; font-size:0.85em; padding:20px; text-align:center; border:1px dashed #333; border-radius:12px;">
-    No preview yet - only captured while the AOD is actually dreaming (not awake, not showing the Photos slideshow).
+  <div class="pills">
+    <div class="pill"><span class="dot" style="--c:${HEALTH_COLOR}"></span><span class="lbl">Health</span> ${HEALTH_LABEL}</div>
+    <div class="pill"><span class="dot" style="--c:${NET_COLOR}"></span><span class="lbl">Internet</span> ${NET_LABEL}</div>
+    <div class="pill"><span class="dot" style="--c:${AOD_COLOR}"></span><span class="lbl">AOD</span> ${AOD_LABEL}</div>
+    <div class="pill"><span class="dot" style="--c:${SIGNAL_COLOR}"></span><span class="lbl">Signal</span> ${SIGNAL_LABEL}</div>
   </div>
-  <div style="color:#666; font-size:0.75em; margin-top:6px;">Updates every ~5s while the AOD is active - may be stale otherwise.</div>
 </div>
-<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Debug</h3>
-<div style="display:flex; flex-wrap:wrap; gap:8px; max-width:680px; margin-bottom:14px;">
-  <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Reboot the router now? This will drop the hotspot for ~1-2 minutes.');">
-    <input type="hidden" name="action" value="reboot">
-    <button type="submit" style="background:#e74c3c; color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:0.85em; font-weight:600;">Reboot Device</button>
-  </form>
-  <form method="POST" action="/cgi-bin/debug_action.cgi">
-    <input type="hidden" name="action" value="restart_aod">
-    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart AOD</button>
-  </form>
-  <form method="POST" action="/cgi-bin/debug_action.cgi">
-    <input type="hidden" name="action" value="restart_dashboard">
-    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Dashboard</button>
-  </form>
-  <form method="POST" action="/cgi-bin/debug_action.cgi">
-    <input type="hidden" name="action" value="restart_failover">
-    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Failover</button>
-  </form>
-  <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Restart the hotspot? Connected devices will briefly drop.');">
-    <input type="hidden" name="action" value="restart_hotspot">
-    <button type="submit" style="background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 16px; font-size:0.85em;">Restart Hotspot</button>
-  </form>
-</div>
-<div style="max-width:680px; margin-bottom:14px;">
-  <textarea id="console-cmd" placeholder="shell command, runs as root..." rows="2"
-    style="width:100%; box-sizing:border-box; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:0.9em; font-family:monospace; resize:vertical;"></textarea>
-  <div style="display:flex; gap:8px; margin-top:6px;">
-    <button type="button" id="console-run"
-      style="background:#3498db; color:#000; border:none; border-radius:8px; padding:8px 16px; font-size:0.85em; font-weight:600;">Run</button>
-    <span id="console-status" style="color:#888; font-size:0.8em; align-self:center;"></span>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>Network</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Down</div><div class="value" id="speed-down">${DOWN_MBPS}</div></div>
+      <div class="stat"><div class="label">Up</div><div class="value" id="speed-up">${UP_MBPS}</div></div>
+      <div class="stat"><div class="label">Devices</div><div class="value">${CLIENT_COUNT}</div></div>
+      <div class="stat"><div class="label">Total Used</div><div class="value">${TOTAL_GB} GB</div></div>
+      <div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
+      <div class="stat"><div class="label">Cellular Cycle</div><div class="value colored" style="--c:${QUOTA_COLOR}">${QUOTA_LABEL}</div></div>
+      <div class="stat"><div class="label">WG Tunnel</div><div class="value colored" style="--c:${TUNNEL_COLOR}">${TUNNEL_LABEL}</div></div>
+    </div>
   </div>
-  <pre id="console-output" style="background:#0a0a0a; border:1px solid #222; border-radius:8px; padding:10px 14px; margin-top:8px; max-height:280px; overflow:auto; font-size:0.8em; white-space:pre-wrap; word-break:break-word; display:none;"></pre>
+
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>Device Health</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Battery</div><div class="value">${BATT_LEVEL}%</div></div>
+      <div class="stat"><div class="label">Thermal</div><div class="value colored" style="--c:${THERMAL_COLOR}">${THERMAL_LABEL}</div></div>
+      <div class="stat"><div class="label">Skin Temp</div><div class="value">${SKIN_TEMP}&deg;C</div></div>
+      <div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
+      <div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
+      <div class="stat"><div class="label">SMS Fwd</div><div class="value colored" style="--c:${FWD_COLOR}">${FWD_LABEL}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>AKD</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Followers</div><div class="value" style="font-size:1.05em;">${AKD_BADGE_TEXT}</div></div>
+    </div>
+  </div>
 </div>
-<table>
-<tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
-${ROWS}
-</table>
-<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Recent SMS</h3>
-<div style="max-width:680px;">
-${SMS_ROWS}
+
+<div class="grid">
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>Custom Message</div>
+    <div class="stat" style="margin-bottom:14px; padding:0;"><div class="label">Currently showing</div><div class="value" style="font-size:1.1em;">${CUSTOM_MESSAGE_ESC}</div></div>
+    <form method="POST" action="/cgi-bin/message.cgi">
+      <input type="text" name="message" maxlength="200" placeholder="Send a message home..." style="width:100%; margin-bottom:8px;">
+      <div class="form-row">
+        <input type="number" name="duration_min" value="5" min="1" max="1440" style="width:80px; flex:none;">
+        <span style="color:var(--muted); font-size:0.85em;">minutes</span>
+        <button type="submit" class="btn-primary" style="margin-left:auto;">Show on AOD</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>AOD Controls</div>
+    <form method="POST" action="/cgi-bin/set_aod_layout.cgi" class="form-row">
+      <select name="layout">
+        ${AOD_LAYOUT_OPTIONS}
+      </select>
+      <button type="submit" class="btn-primary">Switch Layout</button>
+    </form>
+    <form method="POST" action="/cgi-bin/set_aod_theme.cgi" class="form-row">
+      <select name="theme">
+        ${AOD_THEME_OPTIONS}
+      </select>
+      <button type="submit" class="btn-purple">Switch Color</button>
+    </form>
+    <form method="POST" action="/cgi-bin/set_billing_day.cgi" class="form-row">
+      <span style="color:var(--muted); font-size:0.85em; white-space:nowrap;">Billing day</span>
+      <select name="day">
+        ${BILLING_DAY_OPTIONS}
+      </select>
+      <button type="submit" class="btn-teal">Set</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="accent-bar"></span>AOD Preview</div>
+    <img id="aod-preview-img" src="/aod_preview.png"
+      onerror="this.style.display='none'; document.getElementById('aod-preview-fallback').style.display='block';">
+    <div id="aod-preview-fallback">
+      No preview yet - only captured while the AOD is actually dreaming (not awake, not showing the Photos slideshow).
+    </div>
+    <div style="color:#666; font-size:0.75em; margin-top:6px;">Updates every ~5s while the AOD is active - may be stale otherwise.</div>
+  </div>
+</div>
+
+<div class="card full" style="margin-bottom:var(--gap);">
+  <div class="card-title"><span class="accent-bar"></span>Connected Devices</div>
+  <table>
+  <tr><th>Device</th><th>IP</th><th>MAC</th><th>Total Used</th><th>Rename</th><th>Access</th></tr>
+  ${ROWS}
+  </table>
+</div>
+
+<div class="card full" style="margin-bottom:var(--gap);">
+  <div class="card-title"><span class="accent-bar"></span>Recent SMS</div>
+  ${SMS_ROWS}
+</div>
+
+<div class="card full debug-card">
+  <div class="card-title"><span class="accent-bar" style="background:#e5484d;"></span>Debug / Admin</div>
+  <div class="debug-actions">
+    <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Reboot the router now? This will drop the hotspot for ~1-2 minutes.');">
+      <input type="hidden" name="action" value="reboot">
+      <button type="submit" class="btn-danger">Reboot Device</button>
+    </form>
+    <form method="POST" action="/cgi-bin/debug_action.cgi">
+      <input type="hidden" name="action" value="restart_aod">
+      <button type="submit" class="btn-neutral">Restart AOD</button>
+    </form>
+    <form method="POST" action="/cgi-bin/debug_action.cgi">
+      <input type="hidden" name="action" value="restart_dashboard">
+      <button type="submit" class="btn-neutral">Restart Dashboard</button>
+    </form>
+    <form method="POST" action="/cgi-bin/debug_action.cgi">
+      <input type="hidden" name="action" value="restart_failover">
+      <button type="submit" class="btn-neutral">Restart Failover</button>
+    </form>
+    <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Restart the hotspot? Connected devices will briefly drop.');">
+      <input type="hidden" name="action" value="restart_hotspot">
+      <button type="submit" class="btn-neutral">Restart Hotspot</button>
+    </form>
+  </div>
+  <textarea id="console-cmd" placeholder="shell command, runs as root..." rows="2"></textarea>
+  <div style="display:flex; gap:8px; margin-top:6px; align-items:center;">
+    <button type="button" id="console-run" class="btn-primary">Run</button>
+    <span id="console-status" style="color:var(--muted); font-size:0.8em;"></span>
+  </div>
+  <pre id="console-output"></pre>
+</div>
+
 </div>
 <script>
 // Polls speed.json (written every 2s by speed_monitor.sh, a dedicated

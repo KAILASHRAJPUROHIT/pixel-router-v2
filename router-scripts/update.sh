@@ -394,6 +394,20 @@ while true; do
     }
   }')
 
+  # AOD color picker: same pattern as the layout picker above - names
+  # must stay in the exact order of AodTheme.java's ALL[] array (its
+  # index is what theme_index actually stores), manually kept in sync
+  # since there's no way to query the array's names from shell.
+  AOD_THEME_NAMES="Neon cyberpunk|Glass frost|Retro CRT terminal|Luxury gold|Vaporwave sunset|E-ink newspaper|Holographic|Nature organic"
+  CURRENT_THEME_IDX=$(sed -n 's/.*theme_index" value="\([0-9]*\)".*/\1/p' /data/data/com.router.aod/shared_prefs/aod_prefs.xml 2>/dev/null)
+  [ -z "$CURRENT_THEME_IDX" ] && CURRENT_THEME_IDX=0
+  AOD_THEME_OPTIONS=$(echo "$AOD_THEME_NAMES" | awk -v cur="$CURRENT_THEME_IDX" -F'|' '{
+    for (i=1; i<=NF; i++) {
+      sel = (i-1 == cur) ? " selected" : ""
+      printf "<option value=\"%d\"%s>%s</option>", i-1, sel, $i
+    }
+  }')
+
   # Internet type: own cellular, or failed over to a family member's
   # iPhone hotspot (written by failover_monitor.sh) - name the actual
   # source rather than a generic "Self"/"Borrowed" label, so it's
@@ -538,6 +552,14 @@ while true; do
   </select>
   <button type="submit"
     style="background:#3498db; color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch AOD</button>
+</form>
+<form method="POST" action="/cgi-bin/set_aod_theme.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px;">
+  <select name="theme"
+    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
+    ${AOD_THEME_OPTIONS}
+  </select>
+  <button type="submit"
+    style="background:#9b59b6; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch Color</button>
 </form>
 <h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Debug</h3>
 <div style="display:flex; flex-wrap:wrap; gap:8px; max-width:680px; margin-bottom:14px;">

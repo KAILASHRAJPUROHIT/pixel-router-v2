@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stroke-only ring (transparent fill) for the circular-hero styles
+     (OnePlus Horizon, Samsung Ultra Watch) - a decorative ring around
+     the hero clock/stat, tinted per-instance via android:backgroundTint. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@android:color/transparent" />
+    <stroke android:width="3dp" android:color="#ffffff" />
+</shape>

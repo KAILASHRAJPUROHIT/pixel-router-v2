@@ -59,7 +59,12 @@ while true; do
     IG_STATUS=$(printf '%s' "$RESP" | sed -n 's/.*"instagram":{"status":"\([a-z]*\)".*/\1/p')
     IG_COUNT=$(printf '%s' "$RESP" | sed -n 's/.*"instagram":{[^}]*"followers":\([0-9]*\).*/\1/p')
     FB_STATUS=$(printf '%s' "$RESP" | sed -n 's/.*"facebook":{"status":"\([a-z]*\)".*/\1/p')
-    FB_COUNT=$(printf '%s' "$RESP" | sed -n 's/.*"facebook":{[^}]*"followers":\([0-9]*\).*/\1/p')
+    # AKD's actual JSON field for Facebook is "fans", not "followers" -
+    # confirmed 2026-07-07 via social_forensics.py's _pull_facebook,
+    # which reads fan_count from the Graph API. This grep would have
+    # silently never matched even once AKD's own FB permission error
+    # (Meta App Review's pages_read_engagement scope) gets fixed.
+    FB_COUNT=$(printf '%s' "$RESP" | sed -n 's/.*"facebook":{[^}]*"fans":\([0-9]*\).*/\1/p')
 
     [ "$YT_STATUS" = "ok" ] && [ -n "$YT_COUNT" ] && YT="$YT_COUNT"
     [ "$IG_STATUS" = "ok" ] && [ -n "$IG_COUNT" ] && IG="$IG_COUNT"

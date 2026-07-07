@@ -64,6 +64,21 @@ SMS_RESEND_INTERVAL=1800    # 30 min between SMS-trigger resends (100/day quota)
 BT_SCAN_WAIT=16             # BtScanService's own discovery window is ~14s
 SMS_TRIGGER_PHRASE="FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE"
 
+# Added 2026-07-07: as soon as a trigger SMS is confirmed sent (either
+# path - immediate-on-presence or periodic resend), switch into a tight
+# poll for the hotspot actually turning on, instead of waiting up to
+# FAILOVER_POLL_INTERVAL (30s) for the next normal cycle. Checks the
+# cached scan results every FAST_POLL_INTERVAL second - a literal wifi
+# scan takes several seconds on real hardware, so re-triggering an
+# actual scan every single second wouldn't do anything meaningful; this
+# re-triggers a fresh scan only every FAST_POLL_RESCAN_EVERY seconds and
+# rechecks the (possibly still-cached) results every second in between,
+# which is what actually gets the hotspot detected/connected as fast as
+# realistically possible after the phone owner's Shortcut runs.
+FAST_POLL_INTERVAL=1
+FAST_POLL_DURATION=120      # give up and fall back to the normal cadence after this long
+FAST_POLL_RESCAN_EVERY=5
+
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
 }
@@ -262,6 +277,41 @@ scan_and_connect_once() {
   return 1
 }
 
+# Tight poll for the hotspot appearing right after a trigger SMS was
+# just sent - the phone owner still needs to see the text and the
+# Shortcut needs to run, but once it does, this catches the hotspot
+# within ~1-6s instead of waiting up to FAILOVER_POLL_INTERVAL (30s)
+# for the next normal cycle. Bounded by FAST_POLL_DURATION so a phone
+# that never turns its hotspot on this round doesn't spin the loop
+# forever - falls back to the normal cadence after that.
+fast_poll_for_hotspot() {
+  START=$(date +%s)
+  LAST_SCAN=0
+  while [ $(( $(date +%s) - START )) -lt "$FAST_POLL_DURATION" ]; do
+    NOW=$(date +%s)
+    if [ $((NOW - LAST_SCAN)) -ge "$FAST_POLL_RESCAN_EVERY" ]; then
+      cmd wifi start-scan >/dev/null 2>&1
+      LAST_SCAN=$NOW
+    fi
+    SCAN_RESULTS=$(cmd wifi list-scan-results 2>/dev/null)
+
+    if [ -n "$PHONE1_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE1_SSID"; then
+      log "Fast-poll found $PHONE1_SSID $(( $(date +%s) - START ))s after SMS - connecting"
+      cmd wifi connect-network "$PHONE1_SSID" wpa2 "$PHONE1_PASSWORD" >/dev/null 2>&1
+      echo "$PHONE1_SSID"
+      return 0
+    fi
+    if [ -n "$PHONE2_SSID" ] && echo "$SCAN_RESULTS" | grep -qF "$PHONE2_SSID"; then
+      log "Fast-poll found $PHONE2_SSID $(( $(date +%s) - START ))s after SMS - connecting"
+      cmd wifi connect-network "$PHONE2_SSID" wpa2 "$PHONE2_PASSWORD" >/dev/null 2>&1
+      echo "$PHONE2_SSID"
+      return 0
+    fi
+    sleep "$FAST_POLL_INTERVAL"
+  done
+  return 1
+}
+
 # Persistent loop, not a one-shot attempt - runs until either a borrowed
 # hotspot connects successfully or cellular recovers on its own. Every
 # cycle (~30s, dominated by the BT scan's own ~16s): re-checks presence
@@ -308,11 +358,13 @@ trigger_failover() {
     # this is the "auto on" trigger, not just an informational prompt.
     # Reset the flag once presence is lost so a later re-approach (e.g.
     # phone left and came back) re-triggers instead of staying silent.
+    SMS_JUST_SENT=0
     if [ "$APPROVE1" = "1" ]; then
       if [ "$PHONE1_SENT_THIS_PRESENCE" = "0" ] && [ -n "$PHONE1_NUMBER" ]; then
         send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"
         log "$PHONE1_NAME confirmed present via BT/WiFi - sent trigger SMS immediately"
         PHONE1_SENT_THIS_PRESENCE=1
+        SMS_JUST_SENT=1
       fi
     else
       PHONE1_SENT_THIS_PRESENCE=0
@@ -322,6 +374,7 @@ trigger_failover() {
         send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"
         log "$PHONE2_NAME confirmed present via BT/WiFi - sent trigger SMS immediately"
         PHONE2_SENT_THIS_PRESENCE=1
+        SMS_JUST_SENT=1
       fi
     else
       PHONE2_SENT_THIS_PRESENCE=0
@@ -332,12 +385,21 @@ trigger_failover() {
     # phone that's genuinely home.
     NOW_EPOCH=$(date +%s)
     if [ $((NOW_EPOCH - LAST_SMS_SENT)) -ge "$SMS_RESEND_INTERVAL" ]; then
-      [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE1_NAME"; }
-      [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE2_NAME"; }
+      [ -n "$PHONE1_NUMBER" ] && { send_sms "$PHONE1_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE1_NAME"; SMS_JUST_SENT=1; }
+      [ -n "$PHONE2_NUMBER" ] && { send_sms "$PHONE2_NUMBER" "$SMS_TRIGGER_PHRASE"; log "Periodic resend of trigger SMS to $PHONE2_NAME"; SMS_JUST_SENT=1; }
       LAST_SMS_SENT=$NOW_EPOCH
     fi
 
-    CONNECTED_SSID=$(scan_and_connect_once)
+    # As soon as any SMS was just confirmed sent this cycle, switch into
+    # the tight ~1s poll instead of the plain single-shot scan below -
+    # catches the hotspot the moment the phone owner's Shortcut runs,
+    # rather than waiting up to FAILOVER_POLL_INTERVAL (30s) for the
+    # next normal cycle to even try.
+    if [ "$SMS_JUST_SENT" = "1" ]; then
+      CONNECTED_SSID=$(fast_poll_for_hotspot)
+    else
+      CONNECTED_SSID=$(scan_and_connect_once)
+    fi
     if [ -n "$CONNECTED_SSID" ]; then
       # Give Android's tethering a moment to re-home the upstream, then verify.
       sleep 10

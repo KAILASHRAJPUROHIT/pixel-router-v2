@@ -477,6 +477,29 @@ while true; do
   fi
   AKD_BADGE_TEXT="YT ${AKD_YT} · IG ${AKD_IG} · FB ${AKD_FB}"
 
+  # Cellular data cutoff: cellular_quota_monitor.sh tracks cycle-scoped
+  # rmnet bytes separately from the lifetime TOTAL_GB counter above, and
+  # disables mobile data once the cycle hits 300GB, staying on borrowed
+  # internet until the configured billing day resets it.
+  CYCLE_BYTES=$(cat /data/adb/dashboard/cellular_cycle_bytes 2>/dev/null)
+  [ -z "$CYCLE_BYTES" ] && CYCLE_BYTES=0
+  CYCLE_GB=$(awk -v b="$CYCLE_BYTES" 'BEGIN{printf "%.2f", b/1000000000}')
+  BILLING_DAY=$(cat /data/adb/dashboard/billing_cycle_day 2>/dev/null)
+  [ -z "$BILLING_DAY" ] && BILLING_DAY=1
+  if [ -f /data/adb/dashboard/data_cutoff_active ]; then
+    QUOTA_LABEL="${CYCLE_GB} / 300 GB - CUTOFF ACTIVE"
+    QUOTA_COLOR="#e74c3c"
+  else
+    QUOTA_LABEL="${CYCLE_GB} / 300 GB this cycle"
+    QUOTA_COLOR="#888"
+  fi
+  BILLING_DAY_OPTIONS=$(awk -v cur="$BILLING_DAY" 'BEGIN{
+    for (i=1; i<=28; i++) {
+      sel = (i == cur) ? " selected" : ""
+      printf "<option value=\"%d\"%s>%d</option>", i, sel, i
+    }
+  }')
+
   # Live CPU/GPU clock, for visibility into aod_power_governor.sh's
   # idle-tier throttling actually taking effect - scaling_cur_freq is the
   # frequency actually in use right now, not the scaling_max_freq ceiling
@@ -532,6 +555,7 @@ while true; do
 <div class="stat"><div class="label">CPU MHz</div><div class="value">${CPU_MHZ}</div></div>
 <div class="stat"><div class="label">GPU MHz</div><div class="value">${GPU_MHZ}</div></div>
 <div class="stat"><div class="label">Internet Type</div><div class="value colored" style="--c:${INTERNET_TYPE_COLOR}">${INTERNET_TYPE_LABEL}</div></div>
+<div class="stat"><div class="label">Cellular Cycle</div><div class="value colored" style="--c:${QUOTA_COLOR}">${QUOTA_LABEL}</div></div>
 <div class="stat"><div class="label">AKD</div><div class="value">${AKD_BADGE_TEXT}</div></div>
 <div class="stat"><div class="label">Custom Message</div><div class="value">${CUSTOM_MESSAGE_ESC}</div></div>
 <form method="POST" action="/cgi-bin/message.cgi" style="margin-top:18px; max-width:420px;">
@@ -561,6 +585,24 @@ while true; do
   <button type="submit"
     style="background:#9b59b6; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Switch Color</button>
 </form>
+<form method="POST" action="/cgi-bin/set_billing_day.cgi" style="margin-top:10px; max-width:420px; display:flex; gap:8px; align-items:center;">
+  <span style="color:#888; font-size:0.85em; white-space:nowrap;">Billing cycle day</span>
+  <select name="day"
+    style="flex:1; background:#151515; color:#eee; border:1px solid #333; border-radius:8px; padding:10px 14px; font-size:1em;">
+    ${BILLING_DAY_OPTIONS}
+  </select>
+  <button type="submit"
+    style="background:#16a085; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:0.9em; font-weight:600;">Set</button>
+</form>
+<h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">AOD Preview</h3>
+<div style="max-width:320px; margin-bottom:14px;">
+  <img id="aod-preview-img" src="/aod_preview.png" style="width:100%; border-radius:12px; border:1px solid #333; display:block; background:#0a0a0a;"
+    onerror="this.style.display='none'; document.getElementById('aod-preview-fallback').style.display='block';">
+  <div id="aod-preview-fallback" style="display:none; color:#888; font-size:0.85em; padding:20px; text-align:center; border:1px dashed #333; border-radius:12px;">
+    No preview yet - only captured while the AOD is actually dreaming (not awake, not showing the Photos slideshow).
+  </div>
+  <div style="color:#666; font-size:0.75em; margin-top:6px;">Updates every ~5s while the AOD is active - may be stale otherwise.</div>
+</div>
 <h3 style="margin-top:24px; margin-bottom:8px; color:#888; font-size:0.85em; text-transform:uppercase; letter-spacing:0.05em; font-weight:normal;">Debug</h3>
 <div style="display:flex; flex-wrap:wrap; gap:8px; max-width:680px; margin-bottom:14px;">
   <form method="POST" action="/cgi-bin/debug_action.cgi" onsubmit="return confirm('Reboot the router now? This will drop the hotspot for ~1-2 minutes.');">
@@ -651,6 +693,14 @@ document.getElementById('console-run').addEventListener('click', function() {
       outputEl.style.display = 'block';
     });
 });
+
+// AOD preview: cache-bust every ~5s (matches the app's own capture
+// interval) - a plain <img src> reload would otherwise show a browser-
+// cached copy of the very first load forever.
+setInterval(function() {
+  var img = document.getElementById('aod-preview-img');
+  img.src = '/aod_preview.png?t=' + Date.now();
+}, 5000);
 </script>
 </body>
 </html>

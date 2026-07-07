@@ -1,6 +1,8 @@
 package com.router.aod;
 
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -20,6 +22,8 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -74,6 +78,13 @@ public class RouterDreamService extends DreamService {
     }
     private static final long POLL_INTERVAL_MS = 5000;
     private static final long CLOCK_TICK_MS = 1000;
+    // Dashboard AOD preview (2026-07-07) - renders the current dream view
+    // to a PNG on the same cadence as the stat poll, so the preview is
+    // never more than one cycle stale. Only exists/updates while a dream
+    // is actually attached (DreamService lifecycle), same caveat as every
+    // other AOD-only feature here - it goes stale (not wrong) whenever
+    // the device is awake or showing the Photos slideshow instead.
+    private static final long PREVIEW_CAPTURE_INTERVAL_MS = 5000;
 
     // Weather: fixed location (this router is stationary, not carried
     // around, and location services are disabled device-wide - see
@@ -121,10 +132,6 @@ public class RouterDreamService extends DreamService {
 
     private View bgRoot, panel1, panel2, panel3, railBg, divider1, panchangCard, weatherCard;
     private final View[] rowViews = new View[STAT_KEYS.length];
-    // Small leading accent-color dot used by aod_card_bold.xml (the
-    // OnePlus Accent/Grid/Pro/Flux/Horizon "clean & bold" style) -
-    // nullable per row since only some layouts include one.
-    private final View[] accentDotViews = new View[STAT_KEYS.length];
     private TextView clockView, dateView, panchangView;
     private TextView panchangHeaderView, panchangTithiView, panchangNakshatraView;
     private TextView muhuratBadge;
@@ -164,6 +171,14 @@ public class RouterDreamService extends DreamService {
         public void run() {
             fetchExecutor.execute(RouterDreamService.this::fetchAndUpdate);
             mainHandler.postDelayed(this, POLL_INTERVAL_MS);
+        }
+    };
+
+    private final Runnable previewTick = new Runnable() {
+        @Override
+        public void run() {
+            capturePreview();
+            mainHandler.postDelayed(this, PREVIEW_CAPTURE_INTERVAL_MS);
         }
     };
 
@@ -281,6 +296,7 @@ public class RouterDreamService extends DreamService {
         fetchExecutor = Executors.newSingleThreadExecutor();
         mainHandler.post(clockTick);
         mainHandler.post(pollTick);
+        mainHandler.post(previewTick);
         mainHandler.post(weatherTick);
         burnInShiftIndex = 0;
         mainHandler.postDelayed(burnInShiftTick, BURN_IN_SHIFT_INTERVAL_MS);
@@ -351,7 +367,6 @@ public class RouterDreamService extends DreamService {
             rowViews[i] = row;
             labelViews[i] = row.findViewById(R.id.stat_label);
             valueViews[i] = row.findViewById(R.id.stat_value);
-            accentDotViews[i] = row.findViewById(R.id.accent_dot);
             labelViews[i].setText(STAT_KEYS[i]);
             valueViews[i].setText("--");
         }
@@ -386,9 +401,6 @@ public class RouterDreamService extends DreamService {
         for (View row : rowViews) {
             tintPanelIfPresent(row, theme.panel);
         }
-        for (View dot : accentDotViews) {
-            tintPanelIfPresent(dot, theme.accent);
-        }
         tintPanelIfPresent(panchangCard, theme.panel);
         tintPanelIfPresent(weatherCard, theme.panel);
         if (healthBadge != null) healthBadge.setTextColor(theme.textMuted);
@@ -415,6 +427,39 @@ public class RouterDreamService extends DreamService {
         if (headline1Value != null) headline1Value.setTextColor(theme.textPrimary);
         if (headline2Label != null) headline2Label.setTextColor(theme.textMuted);
         if (headline2Value != null) headline2Value.setTextColor(theme.accent);
+    }
+
+    /**
+     * Renders the current dream view to a PNG in this app's own files
+     * dir (getFilesDir() - writable by this app's UID without needing
+     * any special permission) so the web dashboard can show a live-ish
+     * preview of whatever AOD design/theme is actually active right
+     * now. dashboard_watchdog.sh copies this file into the httpd-served
+     * directory each cycle, the same root-copies-from-app-files pattern
+     * already used for bt_scan_result.txt.
+     */
+    private void capturePreview() {
+        if (bgRoot == null) return;
+        int width = bgRoot.getWidth();
+        int height = bgRoot.getHeight();
+        if (width <= 0 || height <= 0) return;
+        try {
+            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            bgRoot.draw(canvas);
+            File outFile = new File(getFilesDir(), "aod_preview.png");
+            File tmpFile = new File(getFilesDir(), "aod_preview.png.tmp");
+            try (FileOutputStream out = new FileOutputStream(tmpFile)) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 90, out);
+            }
+            // Atomic rename - a reader (dashboard_watchdog.sh's cp) should
+            // never see a half-written file.
+            tmpFile.renameTo(outFile);
+            bitmap.recycle();
+        } catch (OutOfMemoryError | Exception e) {
+            // Best-effort only - a failed preview capture should never
+            // take down the actual dream.
+        }
     }
 
     private void tintPanel(View panel, int color) {

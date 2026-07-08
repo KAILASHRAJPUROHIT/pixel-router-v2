@@ -45,6 +45,7 @@ done
 sleep 45
 
 CHECK_COUNT=0
+WLAN3_MISSING_STREAK=0
 
 while true; do
   CHECK_COUNT=$((CHECK_COUNT + 1))
@@ -57,6 +58,37 @@ while true; do
       log "hotspot restarted successfully"
     else
       log "hotspot restart attempted but AP interface still missing - will retry next cycle"
+    fi
+    WLAN3_MISSING_STREAK=0
+  # 5GHz-specific check, added 2026-07-08: the AP's own bridged-mode
+  # "opportunistic shutdown" can silently drop just the wlan3 (5GHz)
+  # leg after ~10min idle on that radio, leaving wlan2/ap_br_wlan2
+  # (2.4GHz) up and passing the check above - the AP looks alive but
+  # every device is now sharing one slow 2.4GHz/802.11n link instead
+  # of 5GHz. Confirmed this can't be disabled via WifiConfigStoreSoftAp
+  # .xml's BridgedModeOpportunisticShutdownEnabled flag - the live
+  # SoftApConfiguration Android actually requests hardcodes
+  # BridgedModeInstanceOpportunisticEnabled=true regardless of that
+  # file, so - same philosophy as the AP-preservation check above -
+  # detect and restart rather than fight the setting. 2-consecutive-
+  # checks (30s) debounce avoids false-triggering during the AP's own
+  # normal ~10-15s dual-band startup window.
+  elif [ -d /sys/class/net/wlan2 ] || [ -d /sys/class/net/ap_br_wlan2 ]; then
+    if [ ! -d /sys/class/net/wlan3 ]; then
+      WLAN3_MISSING_STREAK=$((WLAN3_MISSING_STREAK + 1))
+      if [ "$WLAN3_MISSING_STREAK" -ge 2 ]; then
+        log "5GHz (wlan3) missing for $WLAN3_MISSING_STREAK checks while AP otherwise up - likely opportunistic shutdown fired - restarting to restore dual-band"
+        sh /data/adb/service.d/hotspot_on_boot.sh >/dev/null 2>&1
+        sleep 3
+        if [ -d /sys/class/net/wlan3 ]; then
+          log "5GHz restored"
+        else
+          log "restart attempted but wlan3 still missing - will retry next cycle"
+        fi
+        WLAN3_MISSING_STREAK=0
+      fi
+    else
+      WLAN3_MISSING_STREAK=0
     fi
   fi
 

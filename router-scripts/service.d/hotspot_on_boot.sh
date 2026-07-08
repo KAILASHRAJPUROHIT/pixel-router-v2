@@ -23,6 +23,28 @@ while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2
 done
 
+# Mutex, added 2026-07-08: this script is the one shared restart path
+# called directly at boot AND independently by hotspot_watchdog.sh,
+# hotspot_health_check.sh, and connection_optimizer.sh whenever any of
+# them sees the AP interface down. Confirmed live via duplicate
+# "hotspot started" log lines at the same boot: hotspot_watchdog.sh's
+# first check (originally at T+20s) can land while this script's own
+# boot-time run is still mid-bringup (its own 15s pre-softap wait plus
+# real dual-band negotiation time), triggering a second concurrent
+# start-softap call that races the first and has caused an incomplete
+# single-band-only result. Guarding the shared entry point once here
+# covers every caller, instead of adding the same check to each of them.
+LOCK=/data/adb/dashboard/hotspot_on_boot.lock
+if [ -f "$LOCK" ]; then
+  LOCK_PID=$(cat "$LOCK" 2>/dev/null)
+  if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - another hotspot_on_boot.sh (pid $LOCK_PID) is already running - skipping this concurrent call" >> /data/adb/dashboard/hotspot_boot.log
+    exit 0
+  fi
+fi
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
+
 # Airtel's carrier config on this SIM sets
 # isCarrierConfigAffirmsEntitlementCheckRequired=true (confirmed via
 # dumpsys tethering 2026-07-05), meaning Android's official Tethering

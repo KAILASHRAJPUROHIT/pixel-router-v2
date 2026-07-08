@@ -35,7 +35,14 @@ log() {
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
   sleep 2
 done
-sleep 20
+# Widened from 20s to 45s 2026-07-08 - hotspot_on_boot.sh's own boot-time
+# run (15s internal wait + real dual-band softap negotiation) can still
+# be mid-flight at T+20s, and this loop's first check would otherwise
+# see an incomplete/single-band AP and fire an unnecessary concurrent
+# restart. hotspot_on_boot.sh now also has its own mutex against exactly
+# that race, but staying out of its way during normal boot is cheaper
+# than relying on the lock to paper over it every single time.
+sleep 45
 
 CHECK_COUNT=0
 

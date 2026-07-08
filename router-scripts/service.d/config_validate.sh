@@ -90,12 +90,9 @@ check_one "akd_secrets.properties" "$TEMPLATE_DIR/akd_secrets.properties.example
 check_one "hotspot_secrets.properties" "$TEMPLATE_DIR/hotspot_secrets.properties.example" "$STATE_DIR/hotspot_secrets.properties"
 
 # Not a check_one() case - the real dashboard basic-auth credentials
-# live directly in httpd.conf's own "/:user:pass" line, not in a
-# dashboard_auth.properties file under the AOD app's data directory
-# (that path was checked here before, found genuinely MISSING live
-# 2026-07-08, and turned out to be checking a stale/wrong location -
-# the actual live auth mechanism was never broken, this validator was
-# just pointed at the wrong file).
+# live directly in httpd.conf's own "/:user:pass" line (server side -
+# what httpd checks incoming requests against), not in a properties
+# file of their own.
 HTTPD_CONF="/data/local/tmp/dashboard/httpd.conf"
 if [ -f "$HTTPD_CONF" ] && grep -qE '^/:[^:]+:[^:]+$' "$HTTPD_CONF"; then
   log "OK: httpd.conf - basic-auth line present and non-empty"
@@ -103,6 +100,27 @@ if [ -f "$HTTPD_CONF" ] && grep -qE '^/:[^:]+:[^:]+$' "$HTTPD_CONF"; then
 else
   log "MISSING: httpd.conf has no valid \"/:user:pass\" basic-auth line - the dashboard would be unprotected"
   echo "httpd.conf: MISSING" >> "$STATUS_FILE.tmp"
+fi
+
+# Separate CLIENT-side credential, corrected 2026-07-08: an earlier note
+# here wrongly concluded this file didn't matter and dropped its check.
+# It matters - com.router.aod/.RouterDreamService reads its own copy of
+# these credentials from its private storage (getFilesDir()/dashboard_
+# auth.properties, mode 600, not deployed by any install/build step - a
+# manual one-off adb push + chown) to authenticate ITS OWN outbound
+# polls of the dashboard it's rendering. Confirmed live 2026-07-08: an
+# app uninstall+reinstall (done to fix an unrelated launch bug) wiped
+# this file, silently falling back to the "changeme" default creds,
+# getting 401'd on every poll, and leaving every AOD stat blank ("--")
+# with no error surfaced anywhere - fetchAndUpdate() treats a failed
+# poll as best-effort and just leaves the display as-is.
+AOD_AUTH_FILE="/data/user/0/com.router.aod/files/dashboard_auth.properties"
+if [ -s "$AOD_AUTH_FILE" ] && grep -q "^auth.pass=" "$AOD_AUTH_FILE" && ! grep -q "^auth.pass=changeme" "$AOD_AUTH_FILE"; then
+  log "OK: com.router.aod's own dashboard_auth.properties - present with a real password"
+  echo "aod_dashboard_auth: OK" >> "$STATUS_FILE.tmp"
+else
+  log "MISSING: com.router.aod's dashboard_auth.properties is missing or still 'changeme' - AOD stats will silently render as blank/--"
+  echo "aod_dashboard_auth: MISSING" >> "$STATUS_FILE.tmp"
 fi
 
 # Optional - akd_followers_fetch.sh falls back to AKD's own relay for

@@ -115,23 +115,44 @@ while true; do
     case "$CURRENT_DREAM" in
       *router.aod*) : ;; # already ours, nothing to do
       *)
-        # System Doze (or nothing) has taken over instead of our dream.
-        # A plain wake alone was confirmed insufficient here 2026-07-06 -
-        # this exact corrective action fired repeatedly all evening
-        # (every few minutes) with Doze immediately winning right back
-        # each time, meaning the fix was never actually sticking. A
-        # force-stop + screensaver-enabled toggle + wake is the
-        # established reliable sequence (same one set_aod_layout.cgi
-        # uses) - a plain wake only resumes/re-evaluates against
-        # whatever DreamManagerService already has cached, while the
-        # toggle forces a genuinely fresh dream-selection pass.
-        am force-stop com.router.aod >/dev/null 2>&1
-        settings put secure screensaver_enabled 0
-        sleep 1
-        settings put secure screensaver_enabled 1
-        input keyevent KEYCODE_WAKEUP
-        log "Doze/other dream ($CURRENT_DREAM) had taken over instead of ours - force-stopped + toggled screensaver + fresh wake to re-trigger selection"
-        CHANGED=1
+        # Re-verify after a brief settle delay before acting - confirmed
+        # live 2026-07-08 that this check can catch a perfectly normal,
+        # momentary dream-transition gap (mCurrentDream briefly empty
+        # while one dream stops and the next starts, not Doze actually
+        # winning) and misreport it as a takeover. Worse, the force-stop
+        # fix below is itself a dream-stop/restart cycle, so a false
+        # positive here can get caught again by a LATER check mid-fix,
+        # creating a self-perpetuating churn - directly observed: a dream
+        # starting normally, then getting stopped again ~2s later with
+        # reason='stop previous dream', repeating across 5+ incidents in
+        # 4 hours. Only escalate to the disruptive fix if the mismatch
+        # is still there 5s later, which a real takeover (as opposed to
+        # a transition blip) will be.
+        sleep 5
+        CURRENT_DREAM=$(dumpsys dreams 2>/dev/null | grep -m1 mCurrentDream= | grep -o "ComponentInfo{[^}]*}")
+        case "$CURRENT_DREAM" in
+          *router.aod*) : ;; # resolved on its own - was just a transition gap
+          *)
+            # System Doze (or nothing) has genuinely taken over instead of
+            # our dream. A plain wake alone was confirmed insufficient
+            # here 2026-07-06 - this exact corrective action fired
+            # repeatedly all evening (every few minutes) with Doze
+            # immediately winning right back each time, meaning the fix
+            # was never actually sticking. A force-stop + screensaver-
+            # enabled toggle + wake is the established reliable sequence
+            # (same one set_aod_layout.cgi uses) - a plain wake only
+            # resumes/re-evaluates against whatever DreamManagerService
+            # already has cached, while the toggle forces a genuinely
+            # fresh dream-selection pass.
+            am force-stop com.router.aod >/dev/null 2>&1
+            settings put secure screensaver_enabled 0
+            sleep 1
+            settings put secure screensaver_enabled 1
+            input keyevent KEYCODE_WAKEUP
+            log "Doze/other dream ($CURRENT_DREAM) had taken over instead of ours - force-stopped + toggled screensaver + fresh wake to re-trigger selection"
+            CHANGED=1
+            ;;
+        esac
         ;;
     esac
   fi

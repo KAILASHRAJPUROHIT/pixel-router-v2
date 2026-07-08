@@ -32,7 +32,7 @@ HEARTBEAT_EVERY=30
 # comments) required converting it into a persistent watchdog that
 # continuously re-evaluates internet_type and tunnel health instead of
 # applying routing once and never revisiting it.
-SCRIPTS="akd_followers_fetch.sh aod_dream_recovery.sh aod_power_governor.sh aod_preview_sync.sh aod_status_poller.sh aod_watchdog.sh cellular_quota_monitor.sh cloudflared_health_check.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_ratelimit.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh hotspot_manager.sh hotspot_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh speed_monitor.sh thermal_monitor.sh vpn_tether_routing.sh"
+SCRIPTS="akd_followers_fetch.sh aod_dream_recovery.sh aod_power_governor.sh aod_preview_sync.sh aod_status_poller.sh aod_watchdog.sh cellular_quota_monitor.sh cloudflared_health_check.sh cloudflared_tunnel.sh connection_optimizer.sh dashboard_ratelimit.sh dashboard_watchdog.sh failover_monitor.sh forwarder_watchdog.sh hotspot_health_check.sh hotspot_manager.sh hotspot_watchdog.sh idle_photo_switcher.sh log_rotate.sh new_device_watcher.sh qos_priority.sh speed_monitor.sh thermal_monitor.sh vpn_tether_routing.sh"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"

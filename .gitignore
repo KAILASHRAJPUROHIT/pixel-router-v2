@@ -5,6 +5,7 @@
 **/failover.properties
 **/akd_secrets.properties
 **/meta_secrets.properties
+**/hotspot_secrets.properties
 
 # --- Android (aod/) ---
 aod/local.properties

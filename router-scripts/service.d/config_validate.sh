@@ -87,7 +87,23 @@ log "=== config validation starting ==="
 
 check_one "failover.properties" "$TEMPLATE_DIR/failover.properties.example" "$STATE_DIR/failover.properties"
 check_one "akd_secrets.properties" "$TEMPLATE_DIR/akd_secrets.properties.example" "$STATE_DIR/akd_secrets.properties"
-check_one "dashboard_auth.properties" "$TEMPLATE_DIR/dashboard.properties.example" "/data/data/com.router.aod/files/dashboard_auth.properties"
+check_one "hotspot_secrets.properties" "$TEMPLATE_DIR/hotspot_secrets.properties.example" "$STATE_DIR/hotspot_secrets.properties"
+
+# Not a check_one() case - the real dashboard basic-auth credentials
+# live directly in httpd.conf's own "/:user:pass" line, not in a
+# dashboard_auth.properties file under the AOD app's data directory
+# (that path was checked here before, found genuinely MISSING live
+# 2026-07-08, and turned out to be checking a stale/wrong location -
+# the actual live auth mechanism was never broken, this validator was
+# just pointed at the wrong file).
+HTTPD_CONF="/data/local/tmp/dashboard/httpd.conf"
+if [ -f "$HTTPD_CONF" ] && grep -qE '^/:[^:]+:[^:]+$' "$HTTPD_CONF"; then
+  log "OK: httpd.conf - basic-auth line present and non-empty"
+  echo "httpd.conf: OK" >> "$STATUS_FILE.tmp"
+else
+  log "MISSING: httpd.conf has no valid \"/:user:pass\" basic-auth line - the dashboard would be unprotected"
+  echo "httpd.conf: MISSING" >> "$STATUS_FILE.tmp"
+fi
 
 # Optional - akd_followers_fetch.sh falls back to AKD's own relay for
 # IG/FB when this isn't present, so a missing file here isn't an error,

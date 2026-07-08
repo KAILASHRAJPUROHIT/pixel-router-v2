@@ -44,37 +44,16 @@ check_and_fix_softap_timeout() {
 check_hotspot() {
   if ! ip addr show wlan2 2>/dev/null | grep -q "inet " && ! ip addr show ap_br_wlan2 2>/dev/null | grep -q "inet "; then
     log "Hotspot appears down - restarting"
-    # Read the real SSID/password dynamically (same approach as
-    # hotspot_on_boot.sh) - this previously hardcoded a stale default
-    # SSID/password, which would silently revert the hotspot's real
-    # configured name if this ever fired.
-    CFG=/data/misc_ce/0/apexdata/com.android.wifi/WifiConfigStoreSoftAp.xml
-    SSID=$(cat "$CFG" 2>/dev/null | grep "WifiSsid" | sed -E 's/.*>&quot;(.*)&quot;<.*/\1/')
-    PASS=$(cat "$CFG" 2>/dev/null | grep "Passphrase" | sed -E 's/.*>([^<]*)<.*/\1/')
-    # NOTE (repo copy): real fallback SSID redacted - on-device version
-    # has your actual SSID; this path is a rarely-hit last resort.
-    [ -z "$SSID" ] && SSID="CHANGEME_SSID"
-    if [ -n "$PASS" ]; then
-      # stop-softap first - confirmed 2026-07-06 that start-softap can
-      # silently no-op on an already-running session instead of
-      # applying the new SSID/password.
-      cmd wifi stop-softap >/dev/null 2>&1
-      sleep 2
-      cmd wifi start-softap "$SSID" wpa2 "$PASS" >/dev/null 2>&1
-      # PMF-disable fix (2026-07-06, see hotspot_on_boot.sh) - Android
-      # regenerates the hostapd conf with ieee80211w=1 (PMF optional)
-      # every start-softap, which is incompatible with some client
-      # WiFi drivers on plain WPA2 (confirmed against a real laptop).
-      sleep 5
-      HOSTAPD_CONF=/data/vendor/wifi/hostapd/hostapd_wlan2.conf
-      if [ -f "$HOSTAPD_CONF" ]; then
-        sed -i "s/ieee80211w=1/ieee80211w=0/" "$HOSTAPD_CONF"
-        HOSTAPD_PID=$(pgrep -x hostapd)
-        [ -n "$HOSTAPD_PID" ] && kill -HUP "$HOSTAPD_PID"
-      fi
-    else
-      log "Could not read real SSID/password from WifiConfigStoreSoftAp.xml - not restarting with a guessed fallback"
-    fi
+    # Delegates to hotspot_on_boot.sh instead of keeping its own restart
+    # logic (2026-07-08) - this used to have a second, independent copy
+    # of the SSID/password-reading + start-softap sequence, which had
+    # drifted out of sync with hotspot_on_boot.sh's own fixes (missing
+    # -b bridged_2_5, no PMF/ACL reapply - would have silently reverted
+    # to single-band 2.4GHz-only and locked out the 5GHz-only devices,
+    # the exact failure that happened live 2026-07-08). Same pattern
+    # hotspot_watchdog.sh already uses, for the same reason: one correct
+    # restart sequence, not two that can independently go stale.
+    sh /data/adb/service.d/hotspot_on_boot.sh >/dev/null 2>&1
   fi
 }
 

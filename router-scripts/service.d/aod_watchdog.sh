@@ -37,6 +37,46 @@ while true; do
     CHANGED=1
   fi
 
+  # Root cause found 2026-07-08 of the every-40-90s dream flicker that
+  # aod_dream_recovery.sh/aod_watchdog.sh's mismatch-recovery logic was
+  # only ever reacting to, never preventing: screensaver_components (the
+  # allowlist) had our RouterDreamService, but the SEPARATE
+  # screensaver_default_component setting - what DreamManagerService
+  # actually launches for its own periodic mDreamsActivatedOnChargeByDefault
+  # trigger while charging, independent of the allowlist - was still
+  # deskclock's Screensaver. That's what was tearing our dream down every
+  # cycle, not a rogue app; the actual target app is even pm-disabled, so
+  # every attempt silently failed after already tearing ours down.
+  if [ "$(settings get secure screensaver_default_component 2>/dev/null)" != "com.router.aod/.RouterDreamService" ]; then
+    settings put secure screensaver_default_component com.router.aod/.RouterDreamService
+    log "screensaver_default_component had drifted off RouterDreamService - reset"
+    CHANGED=1
+  fi
+
+  # Actual root cause found 2026-07-08, after the fix above alone didn't
+  # stop the flicker: logcat at the exact moment of every dream teardown
+  # showed "DreamValidator: Dream ComponentInfo{com.router.aod/...} does
+  # not exist on user 0" - RouterDreamService was never losing to a rival
+  # dream, it could never start at all. Traced via install-time logcat to
+  # "VerifierController: Failed to bind to service ... pkg=com.google.
+  # android.verifier" - this OS build (very new, sdk 37) gates a locally-
+  # installed/updated app's components behind a mandatory install-time
+  # developer-verification handshake; if the verifier itself is disabled,
+  # the app's manifest still parses into the resolver table (so it LOOKS
+  # registered) but its components never fully activate, so every launch
+  # attempt (by us, by DreamManagerService, by am start) fails with
+  # "Error type 3: Activity class ... does not exist". The earlier
+  # Google-app debloat pass disabled this as "non-essential" - it wasn't,
+  # on this OS version. Also affects any other locally-sideloaded app
+  # (confirmed com.wireguard.android hit the identical failure).
+  if [ "$(settings get global package_verifier_enable 2>/dev/null)" = "0" ] || \
+     ! dumpsys package com.google.android.verifier 2>/dev/null | grep -q "enabled=1"; then
+    pm enable com.google.android.verifier >/dev/null 2>&1
+    settings put global package_verifier_enable 1
+    log "com.google.android.verifier had drifted disabled - re-enabled (blocks launch of any sideloaded app on this OS build, not just AOD)"
+    CHANGED=1
+  fi
+
   # Security audit 2026-07-05: wireless ADB was found enabled and
   # actively listening on all interfaces, reachable from any device on
   # the hotspot - a serious attack surface on a rooted device with no

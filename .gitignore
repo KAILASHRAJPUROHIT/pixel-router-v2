@@ -1,0 +1,8 @@
+deploy/out/
+*.db
+*.exe
+
+# Real secrets - only the .example templates are tracked.
+pc-remote/pc_command_key.txt
+pc-remote/pc_command_state.json
+pc-remote/watcher.log

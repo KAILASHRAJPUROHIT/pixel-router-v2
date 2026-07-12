@@ -1,0 +1,237 @@
+{
+  "services": [
+    {
+      "name": "webserver",
+      "command": "/data/adb/router_v2/bin/webserver",
+      "args": [
+        "--addr=127.0.0.1:9090",
+        "--db=/data/adb/router_v2/state/router.db",
+        "--username=Ambic Digital",
+        "--password-hash-file=/data/adb/router_v2/secrets/password_hash.txt",
+        "--totp-secret-file=/data/adb/router_v2/secrets/totp_secret.txt"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "hotspot",
+      "command": "/data/adb/router_v2/bin/hotspot",
+      "args": [
+        "--config=/data/adb/router_v2/secrets/hotspot.json",
+        "--check-interval=15s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 60000,
+      "crash_threshold_ms": 10000
+    },
+    {
+      "name": "forwarder",
+      "command": "/data/adb/router_v2/bin/forwarder",
+      "args": [
+        "--check-interval=20s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "quota",
+      "command": "/data/adb/router_v2/bin/quota",
+      "args": [
+        "--db=/data/adb/router_v2/state/router.db",
+        "--cutoff-gb=300",
+        "--check-interval=5m",
+        "--notify-number=+918767635484",
+        "--billing-day=8"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "webproxy",
+      "command": "/data/adb/router_v2/bin/webproxy",
+      "args": [
+        "--addr=127.0.0.1:9091",
+        "--default-target=http://127.0.0.1:9090",
+        "--akd-target=http://10.195.140.200:8000",
+        "--local-router-target=http://10.195.140.200:8787"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "cftunnel",
+      "command": "/data/adb/router_v2/bin/cftunnel",
+      "args": [
+        "--cloudflared=/data/adb/cloudflared",
+        "--tunnel-id=be3365cf-866c-444f-97b0-1604d1b749e0",
+        "--credentials-file=/data/adb/router_v2/state/.cloudflared/be3365cf-866c-444f-97b0-1604d1b749e0.json",
+        "--hostname=router.ambicdigital.in",
+        "--target-port=9091",
+        "--home=/data/adb/router_v2/state",
+        "--url-file=/data/adb/router_v2/state/cftunnel_url.txt"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "tunnel",
+      "command": "/data/adb/router_v2/bin/tunnel",
+      "args": [
+        "--ngrok=/data/adb/ngrok",
+        "--url=https://turban-tried-snarl.ngrok-free.dev",
+        "--target-port=9091",
+        "--home=/data/adb/router_v2/state",
+        "--url-file=/data/adb/router_v2/state/tunnel_url.txt"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "thermalguard",
+      "command": "/data/adb/router_v2/bin/thermalguard",
+      "args": [
+        "--check-interval=30s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "powergovernor",
+      "command": "/data/adb/router_v2/bin/powergovernor",
+      "args": [
+        "--check-interval=2s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "connmonitor",
+      "command": "/data/adb/router_v2/bin/connmonitor",
+      "args": [
+        "--stability-interval=15m",
+        "--detection-interval=1m"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "logrotate",
+      "command": "/data/adb/router_v2/bin/logrotate",
+      "args": [
+        "--dir=/data/adb/router_v2/logs",
+        "--check-interval=1h"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 60000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "qos",
+      "command": "/data/adb/router_v2/bin/qos",
+      "args": [
+        "--priority-mac=1c:d1:d7:b9:36:f2",
+        "--check-interval=2m"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 60000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "vpntether",
+      "command": "/data/adb/router_v2/bin/vpntether",
+      "args": [
+        "--check-interval=30s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 60000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "devicescan",
+      "command": "/data/adb/router_v2/bin/devicescan",
+      "args": [
+        "--db=/data/adb/router_v2/state/router.db",
+        "--check-interval=30s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "dbbackup",
+      "command": "/data/adb/router_v2/bin/dbbackup",
+      "args": [
+        "--db=/data/adb/router_v2/state/router.db",
+        "--backup-dir=/data/adb/router_v2/state/backups",
+        "--interval=6h",
+        "--keep=10"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 60000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "failover",
+      "command": "/data/adb/router_v2/bin/failover",
+      "args": [
+        "--config=/data/adb/dashboard/failover.properties",
+        "--state-dir=/data/adb/router_v2/state",
+        "--check-interval=120s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 2000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "dreamwatchdog",
+      "command": "/data/adb/router_v2/bin/dreamwatchdog",
+      "args": [
+        "--settings-check-interval=120s"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    },
+    {
+      "name": "ttlproxy",
+      "command": "/data/adb/router_v2/bin/ttlproxy",
+      "args": [
+        "--port=12346",
+        "--mark=0x2",
+        "--table=101",
+        "--interfaces=ap_br_wlan2,wlan2,wlan3,ncm0",
+        "--ipv6=true"
+      ],
+      "restart": "always",
+      "backoff_initial_ms": 1000,
+      "backoff_max_ms": 30000,
+      "crash_threshold_ms": 5000
+    }
+  ]
+}

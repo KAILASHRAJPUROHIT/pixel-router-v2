@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generic rounded-pill shape meant to be recolored per-instance via
+     android:backgroundTint (a static XML attribute, no Java needed) -
+     used by the colored-card/pill-row styles (Samsung One UI
+     Information, OnePlus Grid) where each stat needs its OWN solid
+     background color, not just an accent dot. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#ffffff" />
+    <corners android:radius="14dp" />
+</shape>

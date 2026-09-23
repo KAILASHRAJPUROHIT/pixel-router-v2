@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0a0e14">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Router AOD"
+            android:textColor="#f0f1f5"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Layout"
+            android:textColor="#787e8c"
+            android:textSize="13sp"
+            android:textAllCaps="true"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="6dp" />
+
+        <RadioGroup
+            android:id="@+id/layout_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Color theme"
+            android:textColor="#787e8c"
+            android:textSize="13sp"
+            android:textAllCaps="true"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="6dp" />
+
+        <RadioGroup
+            android:id="@+id/theme_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/preview_note"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Choices take effect next time the always-on display activates (idle + charging)."
+            android:textColor="#787e8c"
+            android:textSize="12sp"
+            android:layout_marginTop="24dp" />
+
+    </LinearLayout>
+</ScrollView>

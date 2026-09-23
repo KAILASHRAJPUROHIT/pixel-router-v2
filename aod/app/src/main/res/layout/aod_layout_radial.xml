@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/panel_1"
+        android:layout_width="170dp"
+        android:layout_height="170dp"
+        android:layout_marginStart="120dp"
+        android:layout_marginTop="335dp"
+        android:background="@drawable/aod_circle_bg">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="34sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+    </FrameLayout>
+
+    <include layout="@layout/aod_row_radial" android:id="@+id/row0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="175dp" android:layout_marginTop="88dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="263dp" android:layout_marginTop="149dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="318dp" android:layout_marginTop="309dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="318dp" android:layout_marginTop="507dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="263dp" android:layout_marginTop="667dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row5" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="175dp" android:layout_marginTop="728dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row6" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="87dp" android:layout_marginTop="667dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="32dp" android:layout_marginTop="507dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row8" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="32dp" android:layout_marginTop="309dp" />
+    <include layout="@layout/aod_row_radial" android:id="@+id/row9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="87dp" android:layout_marginTop="149dp" />
+
+    <!-- All header text stacked in one column so real rendered text
+         height determines spacing - fixed per-line marginTop values
+         (the previous approach) silently overlap once enough lines are
+         added, since they don't account for actual text height. -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
+
+        <TextView
+            android:id="@+id/health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textAllCaps="true"
+            android:text="--" />
+
+        <!-- perf_badge/net_type_badge intentionally omitted here - this
+             layout's 10 stat bubbles are positioned at fixed absolute
+             offsets around the center clock (row0 starts at just 88dp
+             from the top), leaving very little vertical room in the
+             header before colliding with row0/row1. Dropped these two
+             lower-priority additions so panchang + the muhurat display
+             fit without overlap; both are still shown in all 8 other
+             layouts. -->
+
+        <TextView
+            android:id="@+id/panchang"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:text="---" />
+
+        <TextView
+            android:id="@+id/muhurat_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:text="--" />
+    </LinearLayout>
+
+</FrameLayout>

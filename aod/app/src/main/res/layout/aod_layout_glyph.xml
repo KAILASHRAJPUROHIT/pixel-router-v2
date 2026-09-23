@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Glyph Minimal" - inspired by Nothing Phone's Glyph Matrix: sparse,
+     shape/color-driven, deliberately showing less rather than more.
+     Only the clock, one big color-coded "is everything OK" ring, and
+     four floating minimal stats (Internet/Signal/Battery/Thermal) -
+     panchang/muhurat/perf/net-type demoted to tiny muted footer text,
+     everything else omitted outright rather than crammed in. This is
+     the one layout of the 10 that intentionally does NOT try to show
+     all ten stats - a deliberate contrast to the "loud" layouts. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingTop="80dp"
+    android:paddingBottom="40dp">
+
+    <TextView
+        android:id="@+id/clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="72sp"
+        android:fontFamily="sans-serif-light"
+        android:text="--:--" />
+
+    <TextView
+        android:id="@+id/date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:alpha="0.7"
+        android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
+
+    <!-- Hero glyph: the one thing worth a real glance. -->
+    <FrameLayout
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_marginTop="48dp"
+        android:background="@drawable/aod_circle_bg">
+
+        <TextView
+            android:id="@+id/health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textAllCaps="true"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            android:maxLines="1"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="16sp"
+            android:autoSizeMaxTextSize="30sp"
+            android:text="--" />
+    </FrameLayout>
+
+    <!-- Four sparse stats, no cards - internet, signal, battery, thermal. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginTop="40dp"
+        android:paddingHorizontal="24dp">
+
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row8"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_gravity="center" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row9"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_gravity="center" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row4"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_gravity="center" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row5"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_gravity="center" />
+    </LinearLayout>
+
+    <!-- RouterDreamService.bindViews() unconditionally calls
+         row.findViewById(...) for every row0..row9 ID regardless of
+         layout - every layout must include all 10 or it NPE-crashes on
+         load. This layout only visually shows 4 (above); the rest exist
+         purely so binding succeeds, hidden and zero-sized. -->
+    <LinearLayout android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone">
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row0" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row1" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row2" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row3" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row6" />
+        <include layout="@layout/aod_row_glyph" android:id="@+id/row7" />
+    </LinearLayout>
+
+    <!-- Everything else demoted to tiny muted footer text rather than
+         omitted entirely - stays true to "less" without losing data. -->
+    <TextView
+        android:id="@+id/perf_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="9sp"
+        android:alpha="0.4"
+        android:text="--" />
+
+    <TextView
+        android:id="@+id/net_type_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="9sp"
+        android:alpha="0.5"
+        android:text="--" />
+
+    <TextView
+        android:id="@+id/panchang"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:alpha="0.6"
+        android:layout_marginTop="4dp"
+        android:text="---" />
+
+    <TextView
+        android:id="@+id/muhurat_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:text="--" />
+
+</LinearLayout>

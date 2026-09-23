@@ -6,3 +6,34 @@ deploy/out/
 pc-remote/pc_command_key.txt
 pc-remote/pc_command_state.json
 pc-remote/watcher.log
+# v1 additions
+# --- secrets (never commit) ---
+**/dashboard.properties
+**/local_secrets.py
+**/*.pem
+**/failover.properties
+**/akd_secrets.properties
+**/meta_secrets.properties
+**/hotspot_secrets.properties
+# --- Android (aod/) ---
+aod/local.properties
+aod/.gradle/
+aod/app/build/
+aod/build/
+aod/*.iml
+aod/.idea/
+aod/captures/
+aod/.externalNativeBuild/
+aod/.cxx/
+# --- Python (ai/) ---
+ai/__pycache__/
+ai/**/__pycache__/
+ai/*.pyc
+ai/data/*.jsonl
+ai/data/*.log
+ai/data/*.json
+ai/venv/
+ai/.venv/
+# --- OS ---
+.DS_Store
+Thumbs.db

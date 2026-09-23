@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/rail_bg"
+        android:layout_width="92dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingTop="20dp"
+        android:paddingBottom="20dp">
+
+        <include layout="@layout/aod_row_rail" android:id="@+id/row0" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row1" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row2" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row3" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row4" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row5" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row6" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row7" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row8" />
+        <include layout="@layout/aod_row_rail" android:id="@+id/row9" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="68sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
+
+        <TextView
+            android:id="@+id/health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textAllCaps="true"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/perf_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:alpha="0.6"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/net_type_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/panchang"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:text="---" />
+
+        <TextView
+            android:id="@+id/muhurat_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="32dp"
+            android:visibility="gone"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/headline1_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textAllCaps="true"
+            android:text="Battery" />
+
+        <TextView
+            android:id="@+id/headline1_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="48sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/headline2_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textAllCaps="true"
+            android:text="Internet" />
+
+        <TextView
+            android:id="@+id/headline2_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:text="--" />
+
+    </LinearLayout>
+
+</LinearLayout>

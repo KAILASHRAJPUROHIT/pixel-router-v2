@@ -1,0 +1,51 @@
+# Copy to /data/adb/dashboard/failover.properties on the phone (gitignored,
+# never committed) with your real values. Used by failover_monitor.sh.
+#
+# Redesigned 2026-07-06 as an escalation cascade: Bluetooth presence ->
+# WiFi presence -> SMS-triggered self-checking Shortcut. No more
+# home.lat/home.lon (that was the old GPS-handshake design) - each
+# iPhone's own Shortcuts Personal Automation now does its own "am I
+# home" check on receiving the SMS trigger phrase, so the router never
+# needs the phone's actual location.
+#
+# Each iPhone needs ONE simple Shortcuts Personal Automation:
+#   Automation > Create Personal Automation > Message >
+#   "Message Contains" = FAILOVER_TRIGGER_PHRASE_DO_NOT_CHANGE (must
+#   match SMS_TRIGGER_PHRASE in failover_monitor.sh exactly) >
+#   Run Immediately (not "Ask Before Running") > Actions:
+#     If [Current Location] is near Home (e.g. Get Distance Between
+#     Current Location and Home < some small radius) -> Set Personal
+#     Hotspot > On. Otherwise -> do nothing.
+# This is deliberately much simpler than the old design - one trigger,
+# one condition, one action, no SMS reply needed back to the router.
+#
+# phoneN.ssid must exactly match the iPhone's Personal Hotspot name as it
+# appears in Wi-Fi scans (Settings > Personal Hotspot > Wi-Fi Password
+# screen on the iPhone shows both the name and password).
+#
+# Watch for iOS auto-correcting a straight apostrophe (') into a curly
+# one (') in the device name ("Kailash's" -> "Kailash's") - typing the
+# straight version here looks identical at a glance but never
+# byte-matches the real SSID, silently breaking scan-result matching and
+# any exact-string comparison against it. Confirmed as a real bug
+# 2026-07-06. If your hotspot name has an apostrophe, copy it directly
+# from `cmd wifi status` or a scan result rather than typing it by hand.
+#
+# phoneN.mac = WiFi MAC (as seen connected to PILLYBOO - for the instant
+# presence tier). phoneN.bt_mac = Bluetooth MAC, learned from
+# `dumpsys bluetooth_manager` after pairing the phone with this device
+# once in Bluetooth settings (different from the WiFi MAC).
+
+phone1.name=CHANGEME (e.g. Kailash)
+phone1.number=+91XXXXXXXXXX
+phone1.ssid=CHANGEME iPhone hotspot name
+phone1.password=CHANGEME
+phone1.mac=CHANGEME
+phone1.bt_mac=CHANGEME
+
+phone2.name=CHANGEME (e.g. Beena)
+phone2.number=+91XXXXXXXXXX
+phone2.ssid=CHANGEME iPhone hotspot name
+phone2.password=CHANGEME
+phone2.mac=CHANGEME
+phone2.bt_mac=CHANGEME

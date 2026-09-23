@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Label-above-value (not side-by-side) - keeps each row's width down
+     to whichever of label/value is wider, instead of their combined
+     width, which was wide enough at 26sp for the bottom-left and
+     bottom-right corner blocks to overlap into each other across the
+     screen's horizontal midpoint. Confirmed as a real bug via screenshot
+     2026-07-06 (TOTAL USED/Internet/Battery/Signal text colliding). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="end"
+    android:layout_marginBottom="10dp">
+
+    <TextView
+        android:id="@+id/stat_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textAllCaps="true"
+        android:letterSpacing="0.05"
+        android:text="Label" />
+
+    <TextView
+        android:id="@+id/stat_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:text="--" />
+
+</LinearLayout>

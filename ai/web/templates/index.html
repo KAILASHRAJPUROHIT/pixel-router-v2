@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Router AI Insights</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, sans-serif; background:#0b0b0f; color:#eee; margin:0; padding:24px; }
+  h1 { font-weight:600; font-size:1.4em; margin-bottom:4px; }
+  .sub { color:#888; margin-bottom:24px; }
+  .card { background:#16161d; border-radius:12px; padding:16px 20px; margin-bottom:14px; }
+  .stat-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+  .stat { background:#16161d; border-radius:10px; padding:10px 16px; min-width:100px; }
+  .stat .label { color:#888; font-size:0.75em; text-transform:uppercase; }
+  .stat .value { font-size:1.3em; font-weight:600; margin-top:2px; }
+  .error { color:#e74c3c; }
+  .insight-time { color:#888; font-size:0.8em; margin-bottom:6px; }
+  .insight-text { white-space:pre-wrap; line-height:1.4; }
+  #qa-box { display:flex; gap:8px; margin-bottom:20px; }
+  #qa-input { flex:1; padding:10px 14px; border-radius:8px; border:1px solid #333; background:#0b0b0f; color:#eee; }
+  #qa-ask { padding:10px 18px; border-radius:8px; border:none; background:#3a7bd5; color:#fff; cursor:pointer; }
+  #qa-answer { margin-top:12px; }
+</style>
+</head>
+<body>
+<h1>Router AI Insights</h1>
+<div class="sub">Local Ollama-driven monitoring for the Pixel 6 hotspot router</div>
+
+{% if router_error %}
+<div class="card error">Router currently unreachable: {{ router_error }}</div>
+{% elif current %}
+<div class="stat-row">
+  {% for k, v in current.items() %}
+    {% if not k.startswith('_') %}
+    <div class="stat"><div class="label">{{ k }}</div><div class="value">{{ v }}</div></div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div id="qa-box">
+    <input id="qa-input" type="text" placeholder="Ask about the router (e.g. why did the connection drop earlier?)">
+    <button id="qa-ask">Ask</button>
+  </div>
+  <div id="qa-answer"></div>
+</div>
+
+<h2 style="font-size:1.1em; color:#ccc;">Recent AI insights</h2>
+{% for i in insights %}
+<div class="card">
+  <div class="insight-time">{{ i.timestamp }}</div>
+  <div class="insight-text">{{ i.analysis }}</div>
+</div>
+{% else %}
+<div class="card">No insights yet - the analyzer runs every {{ 15 }} minutes.</div>
+{% endfor %}
+
+<script>
+document.getElementById('qa-ask').addEventListener('click', async () => {
+  const q = document.getElementById('qa-input').value.trim();
+  if (!q) return;
+  const answerEl = document.getElementById('qa-answer');
+  answerEl.textContent = 'Thinking...';
+  const resp = await fetch('/ask', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'question=' + encodeURIComponent(q)
+  });
+  const data = await resp.json();
+  answerEl.textContent = data.answer;
+});
+document.getElementById('qa-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('qa-ask').click();
+});
+</script>
+</body>
+</html>

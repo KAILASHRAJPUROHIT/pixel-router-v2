@@ -1,0 +1,100 @@
+#!/system/bin/sh
+# Master rule: the hotspot stays on, period - added 2026-07-07 after
+# confirming the AP genuinely goes down whenever failover_monitor.sh's
+# `cmd wifi connect-network` brings up station-mode Wi-Fi to reach a
+# backup phone's hotspot (confirmed live: ap interface disappeared
+# entirely while wlan0 was connected to "Kailash's 16 Pro Max").
+#
+# This chipset DOES support simultaneous STA+AP (`dumpsys wifi` shows
+# "STA + AP Concurrency Supported: true" and
+# config_wifiStaWithBridgedSoftApConcurrencySupported=true) - so this
+# isn't a hardware limit. The shell-level `cmd wifi connect-network`
+# path failover_monitor.sh uses just doesn't preserve the AP the way a
+# real app using the proper concurrent-mode APIs would. Reverse-
+# engineering that from shell alone isn't practical, so instead of
+# fixing the root cause, this watchdog makes the symptom irrelevant:
+# checks fast (every 15s, much tighter than the other 120s watchdogs)
+# and immediately restarts the hotspot the instant it's found down,
+# regardless of why - user toggle, failover's Wi-Fi connect, a crash,
+# anything. hotspot_on_boot.sh already has the right
+# stop-softap/start-softap sequence and SSID/password lookup, so this
+# just re-runs that.
+#
+# The AP can legitimately come up as either the bridged `ap_br_wlan2`
+# interface or a plain `wlan2` (confirmed both happen depending on
+# opportunistic bridging state) - check for either rather than one
+# fixed name.
+LOG=/data/adb/dashboard/hotspot_watchdog.log
+CHECK_INTERVAL=15
+HEARTBEAT_EVERY=80 # ~20 min at 15s/check
+
+log() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
+}
+
+while [ "$(getprop sys.boot_completed)" != "1" ]; do
+  sleep 2
+done
+# Widened from 20s to 45s 2026-07-08 - hotspot_on_boot.sh's own boot-time
+# run (15s internal wait + real dual-band softap negotiation) can still
+# be mid-flight at T+20s, and this loop's first check would otherwise
+# see an incomplete/single-band AP and fire an unnecessary concurrent
+# restart. hotspot_on_boot.sh now also has its own mutex against exactly
+# that race, but staying out of its way during normal boot is cheaper
+# than relying on the lock to paper over it every single time.
+sleep 45
+
+CHECK_COUNT=0
+WLAN3_MISSING_STREAK=0
+
+while true; do
+  CHECK_COUNT=$((CHECK_COUNT + 1))
+
+  if [ ! -d /sys/class/net/wlan2 ] && [ ! -d /sys/class/net/ap_br_wlan2 ]; then
+    log "hotspot AP interface missing - restarting"
+    sh /data/adb/service.d/hotspot_on_boot.sh >/dev/null 2>&1
+    sleep 3
+    if [ -d /sys/class/net/wlan2 ] || [ -d /sys/class/net/ap_br_wlan2 ]; then
+      log "hotspot restarted successfully"
+    else
+      log "hotspot restart attempted but AP interface still missing - will retry next cycle"
+    fi
+    WLAN3_MISSING_STREAK=0
+  # 5GHz-specific check, added 2026-07-08: the AP's own bridged-mode
+  # "opportunistic shutdown" can silently drop just the wlan3 (5GHz)
+  # leg after ~10min idle on that radio, leaving wlan2/ap_br_wlan2
+  # (2.4GHz) up and passing the check above - the AP looks alive but
+  # every device is now sharing one slow 2.4GHz/802.11n link instead
+  # of 5GHz. Confirmed this can't be disabled via WifiConfigStoreSoftAp
+  # .xml's BridgedModeOpportunisticShutdownEnabled flag - the live
+  # SoftApConfiguration Android actually requests hardcodes
+  # BridgedModeInstanceOpportunisticEnabled=true regardless of that
+  # file, so - same philosophy as the AP-preservation check above -
+  # detect and restart rather than fight the setting. 2-consecutive-
+  # checks (30s) debounce avoids false-triggering during the AP's own
+  # normal ~10-15s dual-band startup window.
+  elif [ -d /sys/class/net/wlan2 ] || [ -d /sys/class/net/ap_br_wlan2 ]; then
+    if [ ! -d /sys/class/net/wlan3 ]; then
+      WLAN3_MISSING_STREAK=$((WLAN3_MISSING_STREAK + 1))
+      if [ "$WLAN3_MISSING_STREAK" -ge 2 ]; then
+        log "5GHz (wlan3) missing for $WLAN3_MISSING_STREAK checks while AP otherwise up - likely opportunistic shutdown fired - restarting to restore dual-band"
+        sh /data/adb/service.d/hotspot_on_boot.sh >/dev/null 2>&1
+        sleep 3
+        if [ -d /sys/class/net/wlan3 ]; then
+          log "5GHz restored"
+        else
+          log "restart attempted but wlan3 still missing - will retry next cycle"
+        fi
+        WLAN3_MISSING_STREAK=0
+      fi
+    else
+      WLAN3_MISSING_STREAK=0
+    fi
+  fi
+
+  if [ "$((CHECK_COUNT % HEARTBEAT_EVERY))" = "0" ]; then
+    log "heartbeat - watchdog alive, $CHECK_COUNT checks so far"
+  fi
+
+  sleep "$CHECK_INTERVAL"
+done

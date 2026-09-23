@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deliberately no card background/border - Nothing Phone's Glyph
+     Matrix ethos is sparse shapes and color doing the work, not boxed
+     panels. Just a tiny caps label and a big bold value floating in
+     open space. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="6dp"
+    android:orientation="vertical"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/stat_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:alpha="0.55"
+        android:text="Label" />
+
+    <TextView
+        android:id="@+id/stat_value"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_horizontal"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="12sp"
+        android:autoSizeMaxTextSize="22sp"
+        android:text="--" />
+
+</LinearLayout>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OnePlus Pro (smart AOD) - a thin multi-color gradient bar accent
+     under the clock (the "smart"/adaptive-lighting motif), then a
+     clean two-line list below (label above, bold value below, no
+     boxes) - distinct from every other layout's row treatment.
+     Complete field set. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <TextView android:id="@+id/clock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="40sp" android:fontFamily="sans-serif-light" android:text="--:--" />
+        <TextView android:id="@+id/net_type_badge" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_gravity="top" android:gravity="end" android:textSize="11sp" android:text="--" />
+        </LinearLayout>
+    <TextView android:id="@+id/date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="13sp" android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
+
+    <!-- The "smart gradient" accent bar - a row of small color segments
+         forming a soft rainbow strip, reminiscent of OnePlus's adaptive
+         lighting/always-on-display accent line. Purely decorative. -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="4dp" android:orientation="horizontal" android:layout_marginTop="10dp" android:layout_marginBottom="4dp">
+        <View android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="#3498db" />
+        <View android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="#9b59b6" />
+        <View android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="#e91e63" />
+        <View android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="#e67e22" />
+        <View android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="#2ecc71" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/health_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textAllCaps="true" android:textStyle="bold" android:textSize="13sp" android:textColor="#2ecc71" android:text="--" />
+    <TextView android:id="@+id/perf_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="10sp" android:alpha="0.6" android:text="--" />
+    <TextView android:id="@+id/muhurat_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textStyle="bold" android:visibility="gone" android:text="--" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
+        <LinearLayout android:id="@+id/panchang_card" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.7" android:layout_margin="4dp"
+            android:orientation="vertical">
+            <TextView android:id="@+id/panchang_header" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="10sp" android:textAllCaps="true" android:alpha="0.6" android:letterSpacing="0.05" android:text="Hindu calendar" />
+            <TextView android:id="@+id/panchang_tithi" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textStyle="bold" android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="13sp" android:autoSizeMaxTextSize="18sp" android:text="---" />
+            <TextView android:id="@+id/panchang_nakshatra" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:textSize="12sp" android:alpha="0.7" android:maxLines="1" android:ellipsize="end" android:text="---" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/weather_card" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_margin="4dp"
+            android:orientation="vertical">
+            <TextView android:id="@+id/weather_temp" android:layout_width="match_parent" android:layout_height="wrap_content" android:textStyle="bold" android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="14sp" android:autoSizeMaxTextSize="20sp" android:text="--°" />
+            <TextView android:id="@+id/weather_condition" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:textSize="11sp" android:alpha="0.7" android:maxLines="2" android:text="---" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:alpha="0.15" android:background="#ffffff" />
+
+    <LinearLayout android:id="@+id/row8" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Internet" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#2ecc71" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row0" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Download" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#3498db" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Upload" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#f39c12" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row2" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Devices" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#9b59b6" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row4" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Battery" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#2ecc71" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row5" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Thermal" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#e67e22" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row6" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Skin temp" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#e74c3c" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row3" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Total used" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#16a085" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row7" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="SMS fwd" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#e91e63" android:text="--" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/row9" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textAllCaps="true" android:letterSpacing="0.04" android:alpha="0.55" android:text="Signal" />
+        <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="19sp" android:textColor="#00bcd4" android:text="--" />
+    </LinearLayout>
+
+</LinearLayout>

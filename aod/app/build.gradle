@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Dashboard basic-auth credentials are NOT compiled into the APK -
+// security audit 2026-07-05 found the previous BuildConfig approach put
+// the plaintext password in the DEX constant pool, extractable with a
+// plain `strings` command on the APK. Credentials now load at runtime
+// from a private-app-data file (see RouterDreamService.loadCredentials
+// and dashboard.properties.example for the deployment step).
+
+android {
+    namespace 'com.router.aod'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.router.aod"
+        minSdk 30
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // No external libraries - HttpURLConnection (built into Android) is
+    // enough for polling the router's local dashboard, and pulling in
+    // OkHttp/Retrofit etc. would mean more Maven downloads on a
+    // connection that's already proven slow for large fetches.
+}

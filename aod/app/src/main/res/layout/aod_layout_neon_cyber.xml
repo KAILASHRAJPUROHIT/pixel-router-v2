@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One UI Color (vibrant) - each stat gets its own fixed semantic
+     color (Down=blue, Up=orange, Devices=purple, Total Used=teal,
+     Battery=green, Thermal=orange, Skin Temp=red, SMS Fwd=pink,
+     Internet=green, Signal=cyan), baked directly into this layout via
+     stat_value's android:textColor - fixedStatColors=true in
+     AodLayout.java tells RouterDreamService to leave these colors
+     alone rather than flattening them to the theme's textPrimary.
+     Complete field set: all ten stats + health/net/perf/akd badges +
+     panchang + weather, same completeness as bento_modern.xml. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="40sp"
+            android:fontFamily="sans-serif-light"
+            android:text="--:--" />
+
+        <TextView
+            android:id="@+id/net_type_badge"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="top"
+            android:gravity="end"
+            android:textSize="11sp"
+            android:text="--" />
+
+        </LinearLayout>
+
+    <TextView
+        android:id="@+id/date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:text="---" />
+<TextView android:id="@+id/akd_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="16sp" android:textStyle="bold" android:text="--" />
+
+    <TextView
+        android:id="@+id/perf_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:alpha="0.6"
+        android:text="--" />
+
+    <TextView
+        android:id="@+id/health_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textAllCaps="true"
+        android:textStyle="bold"
+        android:textSize="13sp"
+        android:textColor="#2ecc71"
+        android:text="--" />
+
+    <TextView
+        android:id="@+id/muhurat_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:text="--" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <LinearLayout
+            android:id="@+id/panchang_card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.7"
+            android:layout_margin="4dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/panchang_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textAllCaps="true"
+                android:letterSpacing="0.05"
+                android:text="Hindu calendar" />
+
+            <TextView
+                android:id="@+id/panchang_tithi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="13sp"
+                android:autoSizeMaxTextSize="18sp"
+                android:text="---" />
+
+            <TextView
+                android:id="@+id/panchang_nakshatra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="---" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/weather_card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/weather_temp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="14sp"
+                android:autoSizeMaxTextSize="20sp"
+                android:text="--°" />
+
+            <TextView
+                android:id="@+id/weather_condition"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="11sp"
+                android:maxLines="2"
+                android:text="---" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Full 10-stat grid, 2 columns x 5 rows, each with its own fixed
+         accent color on stat_value (icons approximated with a small
+         colored dot, matching the mockup's colored-icon-per-row look). -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="6dp">
+            <LinearLayout android:id="@+id/row8" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#00e5ff" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Internet" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#00e5ff" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row0" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#00e5ff" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Download" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#00e5ff" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#ff2d95" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Upload" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#ff2d95" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row2" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#ff2d95" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Devices" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#ff2d95" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row3" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#00e5ff" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Total used" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#00e5ff" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="6dp">
+            <LinearLayout android:id="@+id/row4" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#2ecc71" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Battery" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#2ecc71" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row5" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#ff2d95" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Thermal" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#ff2d95" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row6" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#ff2d95" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Skin temp" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#ff2d95" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row7" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#00e5ff" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="SMS fwd" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#00e5ff" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/row9" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+                <View android:layout_width="8dp" android:layout_height="8dp" android:layout_marginEnd="8dp" android:background="#00e5ff" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/stat_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:alpha="0.7" android:text="Signal" />
+                    <TextView android:id="@+id/stat_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="15sp" android:textColor="#00e5ff" android:text="--" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

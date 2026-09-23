@@ -1,0 +1,7 @@
+antrivarouter.duckdns.org, 13-205-101-217.sslip.io {
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    reverse_proxy 10.66.66.2:8080
+}
